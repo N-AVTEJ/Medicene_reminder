@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Medical Cross & Pill emblem centered in safe area -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M49,34h10v15h15v10H59v15H49V59H34V49h15V34z" />
+    <path
+        android:fillColor="#E0F2F1"
+        android:pathData="M38,62c-6.6,0 -12,5.4 -12,12s5.4,12 12,12l32,0c6.6,0 12,-5.4 12,-12s-5.4,-12 -12,-12l-32,0z" />
+    <path
+        android:fillColor="#80CBC4"
+        android:pathData="M54,62l16,0c6.6,0 12,5.4 12,12s-5.4,12 -12,12l-16,0l0,-24z" />
+</vector>
