@@ -11,38 +11,46 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
-    primary = DarkTealPrimary,
-    onPrimary = DarkTealOnPrimary,
-    primaryContainer = DarkTealContainer,
-    onPrimaryContainer = DarkTealOnContainer,
-    secondary = MintSecondary,
-    secondaryContainer = MintContainer,
-    onSecondaryContainer = MintOnContainer,
-    tertiary = BlueTertiary,
-    tertiaryContainer = BlueContainer,
-    onTertiaryContainer = BlueOnContainer
+    primary = ElderlyPrimaryContainer,
+    onPrimary = ElderlyOnPrimaryContainer,
+    primaryContainer = ElderlyPrimary,
+    onPrimaryContainer = ElderlyOnPrimary,
+    secondary = ElderlySecondaryContainer,
+    onSecondary = ElderlyOnSecondaryContainer,
+    secondaryContainer = ElderlySecondary,
+    onSecondaryContainer = ElderlyOnSecondary,
+    background = ElderlyOnSurface,
+    surface = ElderlyOnSurfaceVariant,
+    onBackground = ElderlyBackground,
+    onSurface = ElderlySurface,
+    error = ElderlyErrorContainer,
+    onError = ElderlyOnErrorContainer
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = TealPrimary,
-    onPrimary = TealOnPrimary,
-    primaryContainer = TealContainer,
-    onPrimaryContainer = TealOnContainer,
-    secondary = MintSecondary,
-    secondaryContainer = MintContainer,
-    onSecondaryContainer = MintOnContainer,
-    tertiary = BlueTertiary,
-    tertiaryContainer = BlueContainer,
-    onTertiaryContainer = BlueOnContainer,
-    background = MedicalBackground,
-    surface = MedicalSurface,
-    surfaceVariant = MedicalSurfaceVariant
+    primary = ElderlyPrimary,
+    onPrimary = ElderlyOnPrimary,
+    primaryContainer = ElderlyPrimaryContainer,
+    onPrimaryContainer = ElderlyOnPrimaryContainer,
+    secondary = ElderlySecondary,
+    onSecondary = ElderlyOnSecondary,
+    secondaryContainer = ElderlySecondaryContainer,
+    onSecondaryContainer = ElderlyOnSecondaryContainer,
+    background = ElderlyBackground,
+    surface = ElderlySurface,
+    onBackground = ElderlyOnSurface,
+    onSurface = ElderlyOnSurface,
+    onSurfaceVariant = ElderlyOnSurfaceVariant,
+    error = ElderlyError,
+    onError = ElderlyOnError,
+    errorContainer = ElderlyErrorContainer,
+    onErrorContainer = ElderlyOnErrorContainer
 )
 
 @Composable
 fun MedReminderTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = false, // Use clean custom branding color scheme
+    dynamicColor: Boolean = false, // Keep high contrast brand palette
     content: @Composable () -> Unit,
 ) {
     val colorScheme = when {

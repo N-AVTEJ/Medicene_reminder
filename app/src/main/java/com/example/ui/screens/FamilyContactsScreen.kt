@@ -10,7 +10,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Message
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.*
@@ -51,11 +50,13 @@ fun FamilyContactsScreen() {
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = { showAddDialog = true },
-                icon = { Icon(Icons.Default.Add, contentDescription = null) },
-                text = { Text("Add Contact") },
+                icon = { Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(28.dp)) },
+                text = { Text("Add Contact", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) },
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.testTag("add_contact_fab")
+                modifier = Modifier
+                    .height(58.dp)
+                    .testTag("add_contact_fab")
             )
         }
     ) { innerPadding ->
@@ -69,7 +70,7 @@ fun FamilyContactsScreen() {
         ) {
             Text(
                 text = "Family Contacts",
-                style = MaterialTheme.typography.headlineMedium,
+                style = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
             )
@@ -78,30 +79,31 @@ fun FamilyContactsScreen() {
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.secondaryContainer
                 ),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(20.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
-                    modifier = Modifier.padding(16.dp),
+                    modifier = Modifier.padding(18.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
                         imageVector = Icons.Default.Shield,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                        modifier = Modifier.size(28.dp)
+                        modifier = Modifier.size(36.dp)
                     )
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(14.dp))
                     Text(
-                        text = "Caregiver Alert: Contacts will be notified if a medication dose is missed by 2+ hours.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                        text = "Caregiver Protection: Primary contacts are alerted if a dose is missed by 2+ hours.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        fontWeight = FontWeight.Medium
                     )
                 }
             }
 
             LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
                 items(contacts, key = { it.id }) { contact ->
@@ -112,13 +114,13 @@ fun FamilyContactsScreen() {
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surface
                         ),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                        shape = RoundedCornerShape(16.dp)
+                        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+                        shape = RoundedCornerShape(20.dp)
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp),
+                                .padding(18.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
@@ -128,11 +130,11 @@ fun FamilyContactsScreen() {
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(48.dp)
+                                        .size(56.dp)
                                         .clip(CircleShape)
                                         .background(
                                             if (contact.isPrimaryCaregiver) MaterialTheme.colorScheme.primary
-                                            else MaterialTheme.colorScheme.surfaceVariant
+                                            else MaterialTheme.colorScheme.primaryContainer
                                         ),
                                     contentAlignment = Alignment.Center
                                 ) {
@@ -140,50 +142,68 @@ fun FamilyContactsScreen() {
                                         imageVector = Icons.Default.Person,
                                         contentDescription = null,
                                         tint = if (contact.isPrimaryCaregiver) MaterialTheme.colorScheme.onPrimary
-                                        else MaterialTheme.colorScheme.onSurfaceVariant
+                                        else MaterialTheme.colorScheme.onPrimaryContainer,
+                                        modifier = Modifier.size(32.dp)
                                     )
                                 }
-                                Spacer(modifier = Modifier.width(12.dp))
+                                Spacer(modifier = Modifier.width(14.dp))
                                 Column {
                                     Text(
                                         text = contact.name,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold
+                                        style = MaterialTheme.typography.headlineSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
                                         text = contact.relation,
-                                        style = MaterialTheme.typography.bodySmall,
+                                        style = MaterialTheme.typography.titleMedium,
                                         color = MaterialTheme.colorScheme.primary,
-                                        fontWeight = FontWeight.Medium
+                                        fontWeight = FontWeight.Bold
                                     )
+                                    Spacer(modifier = Modifier.height(2.dp))
                                     Text(
                                         text = contact.phone,
-                                        style = MaterialTheme.typography.bodySmall,
+                                        style = MaterialTheme.typography.bodyLarge,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             }
-                            Row {
-                                IconButton(
+                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Button(
                                     onClick = { },
-                                    modifier = Modifier.testTag("call_contact_${contact.id}")
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary
+                                    ),
+                                    modifier = Modifier
+                                        .height(48.dp)
+                                        .testTag("call_contact_${contact.id}"),
+                                    shape = RoundedCornerShape(12.dp)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Call,
-                                        contentDescription = "Call Contact",
-                                        tint = MaterialTheme.colorScheme.primary
+                                        contentDescription = "Call",
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "CALL",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold
                                     )
                                 }
                                 IconButton(
                                     onClick = {
                                         contacts = contacts.filter { it.id != contact.id }
                                     },
-                                    modifier = Modifier.testTag("delete_contact_${contact.id}")
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .testTag("delete_contact_${contact.id}")
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Delete,
                                         contentDescription = "Delete Contact",
-                                        tint = MaterialTheme.colorScheme.outline
+                                        tint = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.size(28.dp)
                                     )
                                 }
                             }
@@ -197,13 +217,20 @@ fun FamilyContactsScreen() {
     if (showAddDialog) {
         AlertDialog(
             onDismissRequest = { showAddDialog = false },
-            title = { Text("Add Caregiver Contact") },
+            title = {
+                Text(
+                    text = "Add Caregiver Contact",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+            },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     OutlinedTextField(
                         value = nameInput,
                         onValueChange = { nameInput = it },
-                        label = { Text("Contact Name") },
+                        label = { Text("Contact Name", style = MaterialTheme.typography.bodyLarge) },
+                        textStyle = MaterialTheme.typography.bodyLarge,
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("input_contact_name")
@@ -211,7 +238,8 @@ fun FamilyContactsScreen() {
                     OutlinedTextField(
                         value = relationInput,
                         onValueChange = { relationInput = it },
-                        label = { Text("Relationship (e.g. Daughter)") },
+                        label = { Text("Relationship (e.g. Daughter)", style = MaterialTheme.typography.bodyLarge) },
+                        textStyle = MaterialTheme.typography.bodyLarge,
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("input_contact_relation")
@@ -219,7 +247,8 @@ fun FamilyContactsScreen() {
                     OutlinedTextField(
                         value = phoneInput,
                         onValueChange = { phoneInput = it },
-                        label = { Text("Phone Number") },
+                        label = { Text("Phone Number", style = MaterialTheme.typography.bodyLarge) },
+                        textStyle = MaterialTheme.typography.bodyLarge,
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("input_contact_phone")
@@ -244,16 +273,22 @@ fun FamilyContactsScreen() {
                             showAddDialog = false
                         }
                     },
-                    modifier = Modifier.testTag("submit_new_contact")
+                    modifier = Modifier
+                        .height(48.dp)
+                        .testTag("submit_new_contact")
                 ) {
-                    Text("Save Contact")
+                    Text("Save Contact", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showAddDialog = false }) {
-                    Text("Cancel")
+                TextButton(
+                    onClick = { showAddDialog = false },
+                    modifier = Modifier.height(48.dp)
+                ) {
+                    Text("Cancel", style = MaterialTheme.typography.titleMedium)
                 }
             }
         )
     }
 }
+

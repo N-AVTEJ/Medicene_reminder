@@ -58,11 +58,13 @@ fun MyMedicinesScreen() {
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = { showAddDialog = true },
-                icon = { Icon(Icons.Default.Add, contentDescription = null) },
-                text = { Text("Add Medicine") },
+                icon = { Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(28.dp)) },
+                text = { Text("Add Medicine", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) },
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.testTag("add_medicine_fab")
+                modifier = Modifier
+                    .height(58.dp)
+                    .testTag("add_medicine_fab")
             )
         }
     ) { innerPadding ->
@@ -76,26 +78,34 @@ fun MyMedicinesScreen() {
         ) {
             Text(
                 text = "My Medicines",
-                style = MaterialTheme.typography.headlineMedium,
+                style = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
             )
 
-            // Filter Chips
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            // Filter Chips with enlarged touch targets
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 listOf("All", "Prescriptions", "Supplements").forEach { category ->
                     FilterChip(
                         selected = selectedFilter == category,
                         onClick = { selectedFilter = category },
-                        label = { Text(category) },
-                        modifier = Modifier.testTag("filter_$category")
+                        label = {
+                            Text(
+                                text = category,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = if (selectedFilter == category) FontWeight.Bold else FontWeight.Medium
+                            )
+                        },
+                        modifier = Modifier
+                            .height(44.dp)
+                            .testTag("filter_$category")
                     )
                 }
             }
 
             // Medicine List
             LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
                 items(filteredList, key = { it.id }) { med ->
@@ -106,13 +116,13 @@ fun MyMedicinesScreen() {
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surface
                         ),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                        shape = RoundedCornerShape(16.dp)
+                        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+                        shape = RoundedCornerShape(20.dp)
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp),
+                                .padding(18.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
@@ -122,51 +132,62 @@ fun MyMedicinesScreen() {
                             ) {
                                 Surface(
                                     color = MaterialTheme.colorScheme.primaryContainer,
-                                    shape = RoundedCornerShape(12.dp),
-                                    modifier = Modifier.size(48.dp)
+                                    shape = RoundedCornerShape(16.dp),
+                                    modifier = Modifier.size(56.dp)
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
                                         Icon(
                                             imageVector = Icons.Default.Medication,
                                             contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(32.dp)
                                         )
                                     }
                                 }
-                                Spacer(modifier = Modifier.width(12.dp))
+                                Spacer(modifier = Modifier.width(14.dp))
                                 Column {
                                     Text(
                                         text = med.name,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold
+                                        style = MaterialTheme.typography.headlineSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
                                         text = "${med.dosage} • ${med.frequency}",
-                                        style = MaterialTheme.typography.bodySmall,
+                                        style = MaterialTheme.typography.bodyLarge,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
-                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Spacer(modifier = Modifier.height(6.dp))
                                     if (med.remainingPills <= 7) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(
-                                                imageVector = Icons.Default.Warning,
-                                                contentDescription = "Refill warning",
-                                                tint = MaterialTheme.colorScheme.error,
-                                                modifier = Modifier.size(14.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Text(
-                                                text = "Low stock: ${med.remainingPills} left",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.error,
-                                                fontWeight = FontWeight.SemiBold
-                                            )
+                                        Surface(
+                                            color = MaterialTheme.colorScheme.errorContainer,
+                                            shape = RoundedCornerShape(8.dp)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Warning,
+                                                    contentDescription = "Refill warning",
+                                                    tint = MaterialTheme.colorScheme.error,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Text(
+                                                    text = "LOW STOCK: ${med.remainingPills} LEFT",
+                                                    style = MaterialTheme.typography.labelMedium,
+                                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
                                         }
                                     } else {
                                         Text(
-                                            text = "${med.remainingPills} pills remaining",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.primary
+                                            text = "${med.remainingPills} pills remaining in bottle",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            fontWeight = FontWeight.SemiBold
                                         )
                                     }
                                 }
@@ -175,12 +196,15 @@ fun MyMedicinesScreen() {
                                 onClick = {
                                     medicines = medicines.filter { it.id != med.id }
                                 },
-                                modifier = Modifier.testTag("delete_med_${med.id}")
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .testTag("delete_med_${med.id}")
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Delete,
                                     contentDescription = "Delete Medicine",
-                                    tint = MaterialTheme.colorScheme.outline
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(28.dp)
                                 )
                             }
                         }
@@ -194,13 +218,20 @@ fun MyMedicinesScreen() {
     if (showAddDialog) {
         AlertDialog(
             onDismissRequest = { showAddDialog = false },
-            title = { Text("Add New Medicine") },
+            title = {
+                Text(
+                    text = "Add New Medicine",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+            },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     OutlinedTextField(
                         value = newName,
                         onValueChange = { newName = it },
-                        label = { Text("Medicine Name") },
+                        label = { Text("Medicine Name", style = MaterialTheme.typography.bodyLarge) },
+                        textStyle = MaterialTheme.typography.bodyLarge,
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("input_med_name")
@@ -208,7 +239,8 @@ fun MyMedicinesScreen() {
                     OutlinedTextField(
                         value = newDosage,
                         onValueChange = { newDosage = it },
-                        label = { Text("Dosage (e.g., 250mg)") },
+                        label = { Text("Dosage (e.g., 250mg)", style = MaterialTheme.typography.bodyLarge) },
+                        textStyle = MaterialTheme.typography.bodyLarge,
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("input_med_dosage")
@@ -216,7 +248,8 @@ fun MyMedicinesScreen() {
                     OutlinedTextField(
                         value = newFrequency,
                         onValueChange = { newFrequency = it },
-                        label = { Text("Frequency (e.g., Once Daily)") },
+                        label = { Text("Frequency (e.g., Once Daily)", style = MaterialTheme.typography.bodyLarge) },
+                        textStyle = MaterialTheme.typography.bodyLarge,
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("input_med_frequency")
@@ -224,7 +257,8 @@ fun MyMedicinesScreen() {
                     OutlinedTextField(
                         value = newPills,
                         onValueChange = { newPills = it },
-                        label = { Text("Total Pill Count") },
+                        label = { Text("Total Pill Count", style = MaterialTheme.typography.bodyLarge) },
+                        textStyle = MaterialTheme.typography.bodyLarge,
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("input_med_count")
@@ -249,16 +283,22 @@ fun MyMedicinesScreen() {
                             showAddDialog = false
                         }
                     },
-                    modifier = Modifier.testTag("submit_new_medicine")
+                    modifier = Modifier
+                        .height(48.dp)
+                        .testTag("submit_new_medicine")
                 ) {
-                    Text("Save")
+                    Text("Save Medicine", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showAddDialog = false }) {
-                    Text("Cancel")
+                TextButton(
+                    onClick = { showAddDialog = false },
+                    modifier = Modifier.height(48.dp)
+                ) {
+                    Text("Cancel", style = MaterialTheme.typography.titleMedium)
                 }
             }
         )
     }
 }
+

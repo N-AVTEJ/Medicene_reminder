@@ -2,25 +2,28 @@ package com.example.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val TealPrimary = Color(0xFF006A60)
-val TealOnPrimary = Color(0xFFFFFFFF)
-val TealContainer = Color(0xFF99F0E1)
-val TealOnContainer = Color(0xFF00201C)
+// High-Contrast Elderly-Friendly Color Palette
+val ElderlyPrimary = Color(0xFF005047) // Deep Navy Teal (High Contrast)
+val ElderlyOnPrimary = Color(0xFFFFFFFF)
+val ElderlyPrimaryContainer = Color(0xFFCFF2EB)
+val ElderlyOnPrimaryContainer = Color(0xFF00201C)
 
-val MintSecondary = Color(0xFF4A635F)
-val MintContainer = Color(0xFFCCE8E2)
-val MintOnContainer = Color(0xFF05201C)
+val ElderlySecondary = Color(0xFF1E3A8A) // Deep Blue
+val ElderlyOnSecondary = Color(0xFFFFFFFF)
+val ElderlySecondaryContainer = Color(0xFFDBEAFE)
+val ElderlyOnSecondaryContainer = Color(0xFF1E293B)
 
-val BlueTertiary = Color(0xFF456179)
-val BlueContainer = Color(0xFFCCE5FF)
-val BlueOnContainer = Color(0xFF001D32)
+val ElderlyBackground = Color(0xFFF8FAFC)
+val ElderlySurface = Color(0xFFFFFFFF)
+val ElderlyOnSurface = Color(0xFF0F172A) // Ultra High Contrast Dark Text
+val ElderlyOnSurfaceVariant = Color(0xFF334155) // Legible Secondary Text
 
-val MedicalBackground = Color(0xFFF4FAF8)
-val MedicalSurface = Color(0xFFFFFFFF)
-val MedicalSurfaceVariant = Color(0xFFDAE5E1)
+val ElderlyError = Color(0xFFB91C1C) // Deep Alert Red
+val ElderlyOnError = Color(0xFFFFFFFF)
+val ElderlyErrorContainer = Color(0xFFFEE2E2)
+val ElderlyOnErrorContainer = Color(0xFF7F1D1D)
 
-val DarkTealPrimary = Color(0xFF5CDBCC)
-val DarkTealOnPrimary = Color(0xFF003731)
-val DarkTealContainer = Color(0xFF005048)
-val DarkTealOnContainer = Color(0xFF7DF7E8)
+val ElderlySuccess = Color(0xFF15803D) // Deep Success Green
+val ElderlySuccessContainer = Color(0xFFDCFCE7)
+val ElderlyOnSuccessContainer = Color(0xFF14532D)
 

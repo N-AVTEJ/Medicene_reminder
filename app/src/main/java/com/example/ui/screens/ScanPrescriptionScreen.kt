@@ -34,21 +34,37 @@ fun ScanPrescriptionScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Scan Prescription Label") },
+                title = {
+                    Text(
+                        text = "Scan Prescription Label",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
                 navigationIcon = {
                     IconButton(
                         onClick = onNavigateBack,
-                        modifier = Modifier.testTag("scan_back_button")
+                        modifier = Modifier
+                            .size(48.dp)
+                            .testTag("scan_back_button")
                     ) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "Back",
+                            modifier = Modifier.size(28.dp)
+                        )
                     }
                 },
                 actions = {
-                    IconButton(onClick = { flashOn = !flashOn }) {
+                    IconButton(
+                        onClick = { flashOn = !flashOn },
+                        modifier = Modifier.size(48.dp)
+                    ) {
                         Icon(
                             imageVector = Icons.Default.FlashOn,
                             contentDescription = "Toggle Flash",
-                            tint = if (flashOn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+                            tint = if (flashOn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                            modifier = Modifier.size(28.dp)
                         )
                     }
                 }
@@ -69,24 +85,25 @@ fun ScanPrescriptionScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(280.dp)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(Color(0xFF1E293B))
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(Color(0xFF0F172A))
                     .border(
-                        width = 2.dp,
-                        color = if (isScanning) MaterialTheme.colorScheme.primary else Color.LightGray.copy(alpha = 0.5f),
-                        shape = RoundedCornerShape(20.dp)
+                        width = 3.dp,
+                        color = if (isScanning) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.6f),
+                        shape = RoundedCornerShape(24.dp)
                     )
                     .testTag("scan_viewfinder"),
                 contentAlignment = Alignment.Center
             ) {
                 if (isScanning) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                        Spacer(modifier = Modifier.height(12.dp))
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary, modifier = Modifier.size(48.dp))
+                        Spacer(modifier = Modifier.height(14.dp))
                         Text(
                             text = "Analyzing Prescription Label with AI...",
                             color = Color.White,
-                            style = MaterialTheme.typography.bodyMedium
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 } else if (scannedResult != null) {
@@ -95,12 +112,13 @@ fun ScanPrescriptionScreen(
                             imageVector = Icons.Default.CheckCircle,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(48.dp)
+                            modifier = Modifier.size(56.dp)
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
                         Text(
                             text = "Label Scanned Successfully!",
                             color = Color.White,
+                            style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -109,14 +127,15 @@ fun ScanPrescriptionScreen(
                         Icon(
                             imageVector = Icons.Default.DocumentScanner,
                             contentDescription = null,
-                            tint = Color.White.copy(alpha = 0.7f),
-                            modifier = Modifier.size(56.dp)
+                            tint = Color.White.copy(alpha = 0.85f),
+                            modifier = Modifier.size(64.dp)
                         )
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(14.dp))
                         Text(
                             text = "Align prescription bottle or paper label here",
-                            color = Color.White.copy(alpha = 0.8f),
-                            style = MaterialTheme.typography.bodyMedium
+                            color = Color.White,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium
                         )
                     }
                 }
@@ -130,44 +149,47 @@ fun ScanPrescriptionScreen(
                             containerColor = MaterialTheme.colorScheme.surface
                         ),
                         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(20.dp),
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("scanned_result_card")
                     ) {
                         Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                            modifier = Modifier.padding(18.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             Text(
                                 text = "Detected Prescription",
-                                style = MaterialTheme.typography.labelMedium,
+                                style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.primary,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
                                 text = med.name,
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
                             )
-                            Row(
+                            Column(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
                                 Text(
                                     text = "Dosage: ${med.dosage}",
-                                    style = MaterialTheme.typography.bodyMedium
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
                                     text = "Frequency: ${med.frequency}",
-                                    style = MaterialTheme.typography.bodyMedium
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "Pills per bottle: ${med.remainingPills}",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                            Text(
-                                text = "Pills per bottle: ${med.remainingPills}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
 
                             Spacer(modifier = Modifier.height(8.dp))
 
@@ -178,9 +200,15 @@ fun ScanPrescriptionScreen(
                                 },
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .testTag("save_scanned_rx_button")
+                                    .height(54.dp)
+                                    .testTag("save_scanned_rx_button"),
+                                shape = RoundedCornerShape(14.dp)
                             ) {
-                                Text("Add to My Medicines")
+                                Text(
+                                    text = "Add to My Medicines",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
                         }
                     }
@@ -206,15 +234,20 @@ fun ScanPrescriptionScreen(
                     enabled = !isScanning,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(54.dp)
+                        .height(58.dp)
                         .testTag("capture_rx_button"),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Icon(imageVector = Icons.Default.Camera, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Capture & Scan Label", fontWeight = FontWeight.Bold)
+                    Icon(imageVector = Icons.Default.Camera, contentDescription = null, modifier = Modifier.size(28.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "Capture & Scan Label",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
         }
     }
 }
+
