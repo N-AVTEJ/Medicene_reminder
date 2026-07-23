@@ -1,5 +1,6 @@
 package com.example
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -12,19 +13,44 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import com.example.data.models.DoseStatus
+import com.example.data.repository.FirebaseRepository
 import com.example.ui.components.MedReminderBottomBar
 import com.example.ui.navigation.Screen
 import com.example.ui.screens.*
 import com.example.ui.theme.MedReminderTheme
+import com.example.utils.NotificationHelper
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // Create notification channel
+        NotificationHelper.createNotificationChannel(this)
+
+        // Process notification intent if opened from a notification tap
+        handleNotificationIntent(intent)
+
         setContent {
             MedReminderTheme {
                 MedReminderApp()
             }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleNotificationIntent(intent)
+    }
+
+    private fun handleNotificationIntent(intent: Intent?) {
+        if (intent == null) return
+        val doseId = intent.getStringExtra(NotificationHelper.EXTRA_DOSE_ID)
+        val autoMarkTaken = intent.getBooleanExtra("auto_mark_taken", false)
+
+        if (!doseId.isNullOrBlank() && autoMarkTaken) {
+            FirebaseRepository.markDoseStatus(doseId, DoseStatus.TAKEN)
         }
     }
 }

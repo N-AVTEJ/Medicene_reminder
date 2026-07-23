@@ -17,9 +17,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.data.repository.FirebaseRepository
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,6 +32,7 @@ fun ScanPrescriptionScreen(
     var isScanning by remember { mutableStateOf(false) }
     var scannedResult by remember { mutableStateOf<MedicineItem?>(null) }
     var flashOn by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -195,6 +198,13 @@ fun ScanPrescriptionScreen(
 
                             Button(
                                 onClick = {
+                                    FirebaseRepository.addMedicineWithAutoSchedule(
+                                        name = med.name,
+                                        dose = med.dosage,
+                                        frequency = med.frequency,
+                                        durationDays = 30,
+                                        context = context
+                                    )
                                     onSaveScannedMedicine(med)
                                     onNavigateBack()
                                 },
@@ -205,7 +215,7 @@ fun ScanPrescriptionScreen(
                                 shape = RoundedCornerShape(14.dp)
                             ) {
                                 Text(
-                                    text = "Add to My Medicines",
+                                    text = "Confirm & Auto-Generate 30-Day Schedule",
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold
                                 )

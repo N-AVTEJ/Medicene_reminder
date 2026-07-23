@@ -14,9 +14,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.data.repository.FirebaseRepository
 
 data class MedicineItem(
     val id: String,
@@ -30,29 +33,16 @@ data class MedicineItem(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MyMedicinesScreen() {
-    var medicines by remember {
-        mutableStateOf(
-            listOf(
-                MedicineItem("1", "Amoxicillin", "500mg Capsule", "Twice Daily", 14, "Prescription"),
-                MedicineItem("2", "Lisinopril", "10mg Tablet", "Once Daily (Evening)", 28, "Prescription"),
-                MedicineItem("3", "Vitamin D3", "1000 IU Tablet", "Daily (Morning)", 5, "Supplements")
-            )
-        )
-    }
+    val context = LocalContext.current
+    val repositoryMeds by FirebaseRepository.medicines.collectAsStateWithLifecycle()
 
     var selectedFilter by remember { mutableStateOf("All") }
     var showAddDialog by remember { mutableStateOf(false) }
 
     var newName by remember { mutableStateOf("") }
     var newDosage by remember { mutableStateOf("") }
-    var newFrequency by remember { mutableStateOf("Once Daily") }
-    var newPills by remember { mutableStateOf("30") }
-
-    val filteredList = when (selectedFilter) {
-        "Prescriptions" -> medicines.filter { it.category == "Prescription" }
-        "Supplements" -> medicines.filter { it.category == "Supplements" }
-        else -> medicines
-    }
+    var newFrequency by remember { mutableStateOf("Twice Daily") }
+    var newDurationDays by remember { mutableStateOf("14") }
 
     Scaffold(
         floatingActionButton = {
@@ -77,7 +67,7 @@ fun MyMedicinesScreen() {
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
-                text = "My Medicines",
+                text = "My Medicines & Firebase DB",
                 style = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
@@ -108,7 +98,7 @@ fun MyMedicinesScreen() {
                 verticalArrangement = Arrangement.spacedBy(14.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
-                items(filteredList, key = { it.id }) { med ->
+                items(repositoryMeds, key = { it.id }) { med ->
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -153,48 +143,22 @@ fun MyMedicinesScreen() {
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
-                                        text = "${med.dosage} • ${med.frequency}",
+                                        text = "${med.dose} • ${med.frequency}",
                                         style = MaterialTheme.typography.bodyLarge,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
-                                    Spacer(modifier = Modifier.height(6.dp))
-                                    if (med.remainingPills <= 7) {
-                                        Surface(
-                                            color = MaterialTheme.colorScheme.errorContainer,
-                                            shape = RoundedCornerShape(8.dp)
-                                        ) {
-                                            Row(
-                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Warning,
-                                                    contentDescription = "Refill warning",
-                                                    tint = MaterialTheme.colorScheme.error,
-                                                    modifier = Modifier.size(18.dp)
-                                                )
-                                                Spacer(modifier = Modifier.width(6.dp))
-                                                Text(
-                                                    text = "LOW STOCK: ${med.remainingPills} LEFT",
-                                                    style = MaterialTheme.typography.labelMedium,
-                                                    color = MaterialTheme.colorScheme.onErrorContainer,
-                                                    fontWeight = FontWeight.Bold
-                                                )
-                                            }
-                                        }
-                                    } else {
-                                        Text(
-                                            text = "${med.remainingPills} pills remaining in bottle",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.primary,
-                                            fontWeight = FontWeight.SemiBold
-                                        )
-                                    }
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "Duration: ${med.duration_days} days • Auto Schedule active",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
                                 }
                             }
                             IconButton(
                                 onClick = {
-                                    medicines = medicines.filter { it.id != med.id }
+                                    FirebaseRepository.deleteMedicine(med.id)
                                 },
                                 modifier = Modifier
                                     .size(48.dp)
@@ -220,7 +184,7 @@ fun MyMedicinesScreen() {
             onDismissRequest = { showAddDialog = false },
             title = {
                 Text(
-                    text = "Add New Medicine",
+                    text = "Add Medicine & Auto-Schedule",
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold
                 )
@@ -239,7 +203,7 @@ fun MyMedicinesScreen() {
                     OutlinedTextField(
                         value = newDosage,
                         onValueChange = { newDosage = it },
-                        label = { Text("Dosage (e.g., 250mg)", style = MaterialTheme.typography.bodyLarge) },
+                        label = { Text("Dosage (e.g., 500mg)", style = MaterialTheme.typography.bodyLarge) },
                         textStyle = MaterialTheme.typography.bodyLarge,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -248,16 +212,16 @@ fun MyMedicinesScreen() {
                     OutlinedTextField(
                         value = newFrequency,
                         onValueChange = { newFrequency = it },
-                        label = { Text("Frequency (e.g., Once Daily)", style = MaterialTheme.typography.bodyLarge) },
+                        label = { Text("Frequency (e.g., Twice Daily)", style = MaterialTheme.typography.bodyLarge) },
                         textStyle = MaterialTheme.typography.bodyLarge,
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("input_med_frequency")
                     )
                     OutlinedTextField(
-                        value = newPills,
-                        onValueChange = { newPills = it },
-                        label = { Text("Total Pill Count", style = MaterialTheme.typography.bodyLarge) },
+                        value = newDurationDays,
+                        onValueChange = { newDurationDays = it },
+                        label = { Text("Duration (Days, e.g. 14)", style = MaterialTheme.typography.bodyLarge) },
                         textStyle = MaterialTheme.typography.bodyLarge,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -269,15 +233,14 @@ fun MyMedicinesScreen() {
                 Button(
                     onClick = {
                         if (newName.isNotBlank()) {
-                            val newMed = MedicineItem(
-                                id = System.currentTimeMillis().toString(),
+                            val durationInt = newDurationDays.toIntOrNull() ?: 14
+                            FirebaseRepository.addMedicineWithAutoSchedule(
                                 name = newName,
-                                dosage = if (newDosage.isBlank()) "500mg" else newDosage,
+                                dose = if (newDosage.isBlank()) "1 Tablet" else newDosage,
                                 frequency = newFrequency,
-                                remainingPills = newPills.toIntOrNull() ?: 30,
-                                category = "Prescription"
+                                durationDays = durationInt,
+                                context = context
                             )
-                            medicines = medicines + newMed
                             newName = ""
                             newDosage = ""
                             showAddDialog = false
@@ -287,7 +250,7 @@ fun MyMedicinesScreen() {
                         .height(48.dp)
                         .testTag("submit_new_medicine")
                 ) {
-                    Text("Save Medicine", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text("Save & Auto-Generate", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {

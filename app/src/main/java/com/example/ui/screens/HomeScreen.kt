@@ -21,6 +21,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.data.models.DoseStatus
+import com.example.data.repository.FirebaseRepository
+import com.example.utils.DoseScheduler
 
 @Composable
 fun HomeScreen(
@@ -29,9 +33,16 @@ fun HomeScreen(
     onNavigateToReminders: () -> Unit,
     onNavigateToLogin: () -> Unit
 ) {
-    var isMorningDoseTaken by remember { mutableStateOf(true) }
-    var isNoonDoseTaken by remember { mutableStateOf(false) }
-    var isEveningDoseTaken by remember { mutableStateOf(false) }
+    val user by FirebaseRepository.currentUser.collectAsStateWithLifecycle()
+    val medicines by FirebaseRepository.medicines.collectAsStateWithLifecycle()
+    val allDoses by FirebaseRepository.doses.collectAsStateWithLifecycle()
+
+    // Show upcoming doses
+    val displayDoses = remember(allDoses) {
+        allDoses.take(6)
+    }
+
+    val remainingCount = displayDoses.count { DoseStatus.fromString(it.status) == DoseStatus.PENDING }
 
     LazyColumn(
         modifier = Modifier
@@ -60,14 +71,14 @@ fun HomeScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Good Morning, Sarah 👋",
+                            text = "Good Day, ${user.name.split(" ").firstOrNull() ?: "Sarah"} 👋",
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = "You have 2 remaining doses scheduled today.",
+                            text = if (remainingCount > 0) "You have $remainingCount pending dose(s) scheduled." else "Great job! All current doses are taken.",
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
@@ -173,7 +184,7 @@ fun HomeScreen(
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                         Text(
-                            text = "3 Pills Active",
+                            text = "${medicines.size} Pills Active",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
@@ -190,7 +201,7 @@ fun HomeScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Today's Medication",
+                    text = "Dose Schedule & Firebase Sync",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
@@ -213,39 +224,19 @@ fun HomeScreen(
             }
         }
 
-        // Dose Card 1
-        item {
-            DoseScheduleItemCard(
-                time = "08:00 AM",
-                medicineName = "Amoxicillin 500mg",
-                instructions = "1 Capsule • Take with water after breakfast",
-                isTaken = isMorningDoseTaken,
-                onToggle = { isMorningDoseTaken = !isMorningDoseTaken },
-                tag = "dose_morning"
-            )
-        }
+        items(displayDoses.size, key = { index -> displayDoses[index].id }) { index ->
+            val dose = displayDoses[index]
+            val isTaken = DoseStatus.fromString(dose.status) == DoseStatus.TAKEN
+            val timeDisplay = DoseScheduler.formatDisplayTime(dose.scheduled_time)
+            val dateDisplay = DoseScheduler.formatDisplayDate(dose.scheduled_time)
 
-        // Dose Card 2
-        item {
             DoseScheduleItemCard(
-                time = "01:00 PM",
-                medicineName = "Vitamin D3 1000 IU",
-                instructions = "1 Tablet • Take after lunch",
-                isTaken = isNoonDoseTaken,
-                onToggle = { isNoonDoseTaken = !isNoonDoseTaken },
-                tag = "dose_noon"
-            )
-        }
-
-        // Dose Card 3
-        item {
-            DoseScheduleItemCard(
-                time = "08:00 PM",
-                medicineName = "Lisinopril 10mg",
-                instructions = "1 Tablet • Take before bedtime",
-                isTaken = isEveningDoseTaken,
-                onToggle = { isEveningDoseTaken = !isEveningDoseTaken },
-                tag = "dose_evening"
+                time = timeDisplay,
+                medicineName = dose.medicine_name,
+                instructions = "Dose: ${dose.dose_amount} • $dateDisplay",
+                isTaken = isTaken,
+                onToggle = { FirebaseRepository.toggleDoseTaken(dose.id) },
+                tag = "dose_item_$index"
             )
         }
     }

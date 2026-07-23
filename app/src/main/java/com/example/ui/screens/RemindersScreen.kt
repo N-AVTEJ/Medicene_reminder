@@ -3,39 +3,36 @@ package com.example.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Alarm
+import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-
-data class ReminderSchedule(
-    val id: String,
-    val time: String,
-    val medicineName: String,
-    val days: String,
-    var isEnabled: Boolean
-)
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.data.repository.FirebaseRepository
+import com.example.utils.DoseScheduler
+import com.example.utils.NotificationHelper
 
 @Composable
 fun RemindersScreen() {
-    var reminders by remember {
-        mutableStateOf(
-            listOf(
-                ReminderSchedule("1", "08:00 AM", "Amoxicillin & Vitamin D3", "Everyday (Mon-Sun)", true),
-                ReminderSchedule("2", "01:00 PM", "Vitamin D3 1000 IU", "Everyday", true),
-                ReminderSchedule("3", "08:00 PM", "Lisinopril 10mg", "Mon, Wed, Fri", false)
-            )
-        )
-    }
+    val context = LocalContext.current
+    val repositoryReminders by FirebaseRepository.reminders.collectAsStateWithLifecycle()
+    val repositoryDoses by FirebaseRepository.doses.collectAsStateWithLifecycle()
 
     var globalSoundEnabled by remember { mutableStateOf(true) }
+
+    val activeReminders = remember(repositoryReminders, repositoryDoses) {
+        repositoryReminders.take(10)
+    }
 
     Column(
         modifier = Modifier
@@ -45,7 +42,7 @@ fun RemindersScreen() {
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
-            text = "Dose Reminders",
+            text = "Local Dose Reminders",
             style = MaterialTheme.typography.headlineLarge,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground
@@ -61,50 +58,90 @@ fun RemindersScreen() {
                 .fillMaxWidth()
                 .testTag("reminder_settings_card")
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(18.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
+            Column(modifier = Modifier.padding(18.dp)) {
                 Row(
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f)
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.VolumeUp,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(36.dp)
+                        )
+                        Spacer(modifier = Modifier.width(14.dp))
+                        Column {
+                            Text(
+                                text = "Loud Alarm Alert",
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Play loud chime even when phone is silent",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Switch(
+                        checked = globalSoundEnabled,
+                        onCheckedChange = { globalSoundEnabled = it },
+                        modifier = Modifier.testTag("toggle_global_alarm_sound")
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Test Local Notification Trigger Button
+                Button(
+                    onClick = {
+                        val sampleDose = repositoryDoses.firstOrNull()
+                        val doseId = sampleDose?.id ?: "dose_sample_1"
+                        val medName = sampleDose?.medicine_name ?: "Amoxicillin 500mg"
+                        val doseAmount = sampleDose?.dose_amount ?: "1 Capsule"
+
+                        NotificationHelper.showDoseReminderNotification(
+                            context = context,
+                            doseId = doseId,
+                            medicineName = medName,
+                            doseAmount = doseAmount
+                        )
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .testTag("test_local_notification_button"),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    ),
+                    shape = RoundedCornerShape(12.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.VolumeUp,
+                        imageVector = Icons.Default.NotificationsActive,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.size(36.dp)
+                        modifier = Modifier.size(24.dp)
                     )
-                    Spacer(modifier = Modifier.width(14.dp))
-                    Column {
-                        Text(
-                            text = "Loud Alarm Alert",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "Play loud chime even when phone is silent",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "TRIGGER TEST LOCAL NOTIFICATION",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
-                Spacer(modifier = Modifier.width(8.dp))
-                Switch(
-                    checked = globalSoundEnabled,
-                    onCheckedChange = { globalSoundEnabled = it },
-                    modifier = Modifier.testTag("toggle_global_alarm_sound")
-                )
             }
         }
 
         Text(
-            text = "Active Timers",
+            text = "Active Scheduled Reminders (${activeReminders.size})",
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface
@@ -114,12 +151,15 @@ fun RemindersScreen() {
             verticalArrangement = Arrangement.spacedBy(14.dp),
             modifier = Modifier.fillMaxSize()
         ) {
-            items(reminders.size, key = { index -> reminders[index].id }) { index ->
-                val rem = reminders[index]
+            items(activeReminders, key = { it.id }) { reminder ->
+                val dose = repositoryDoses.find { it.id == reminder.dose_id }
+                val timeDisplay = DoseScheduler.formatDisplayTime(reminder.notify_time)
+                val dateDisplay = DoseScheduler.formatDisplayDate(reminder.notify_time)
+
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .testTag("reminder_item_${rem.id}"),
+                        .testTag("reminder_item_${reminder.id}"),
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surface
                     ),
@@ -140,39 +180,30 @@ fun RemindersScreen() {
                             Icon(
                                 imageVector = Icons.Default.Alarm,
                                 contentDescription = null,
-                                tint = if (rem.isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(40.dp)
                             )
                             Spacer(modifier = Modifier.width(14.dp))
                             Column {
                                 Text(
-                                    text = rem.time,
+                                    text = timeDisplay,
                                     style = MaterialTheme.typography.headlineMedium,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (rem.isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+                                    color = MaterialTheme.colorScheme.primary
                                 )
                                 Text(
-                                    text = rem.medicineName,
+                                    text = dose?.medicine_name ?: "Scheduled Medication",
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    text = rem.days,
+                                    text = "$dateDisplay • Status: ${dose?.status ?: "pending"}",
                                     style = MaterialTheme.typography.bodyLarge,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
-                        Switch(
-                            checked = rem.isEnabled,
-                            onCheckedChange = { isChecked ->
-                                reminders = reminders.toMutableList().also {
-                                    it[index] = rem.copy(isEnabled = isChecked)
-                                }
-                            },
-                            modifier = Modifier.testTag("toggle_reminder_${rem.id}")
-                        )
                     }
                 }
             }
