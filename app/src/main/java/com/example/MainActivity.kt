@@ -100,7 +100,10 @@ fun MedReminderApp() {
                     )
                     Screen.Login -> LoginScreen(
                         onNavigateBack = { currentScreen = Screen.Home },
-                        onLoginSuccess = { currentScreen = Screen.Home }
+                        onLoginSuccess = { currentScreen = Screen.Onboarding }
+                    )
+                    Screen.Onboarding -> OnboardingScreen(
+                        onCompleteOnboarding = { currentScreen = Screen.Home }
                     )
                     Screen.ScanPrescription -> ScanPrescriptionScreen(
                         onNavigateBack = { currentScreen = Screen.Home },

@@ -18,12 +18,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.data.repository.FirebaseRepository
 
 enum class LoginStep {
     PHONE_INPUT,
@@ -37,12 +40,16 @@ fun LoginScreen(
     onNavigateBack: () -> Unit,
     onLoginSuccess: () -> Unit
 ) {
+    val context = LocalContext.current
+    val generatedOtpCode by FirebaseRepository.generatedOtp.collectAsStateWithLifecycle()
+
     var currentStep by remember { mutableStateOf(LoginStep.PHONE_INPUT) }
     var phoneNumber by remember { mutableStateOf("+1 (555) 234-5678") }
     var otpDigits by remember { mutableStateOf(List(6) { "" }) }
     var email by remember { mutableStateOf("sarah.jenkins@example.com") }
     var password by remember { mutableStateOf("••••••••") }
     var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
     var timerSeconds by remember { mutableIntStateOf(30) }
 
     // Timer effect for OTP resend
@@ -159,7 +166,9 @@ fun LoginScreen(
                         onClick = {
                             if (phoneNumber.isNotBlank()) {
                                 isLoading = true
-                                // Simulate API call to send OTP
+                                errorMessage = null
+                                val generatedCode = FirebaseRepository.sendOtp(phoneNumber)
+                                // Pre-fill digits for effortless testing or keep blank for typing
                                 currentStep = LoginStep.OTP_VERIFICATION
                                 timerSeconds = 30
                                 isLoading = false
@@ -227,7 +236,50 @@ fun LoginScreen(
                         textAlign = TextAlign.Center
                     )
 
-                    Spacer(modifier = Modifier.height(28.dp))
+                    // Display Generated OTP Banner for testing ease
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Surface(
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("otp_code_banner")
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "🔑 Test OTP Code: ${generatedOtpCode ?: "123456"}",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                            TextButton(
+                                onClick = {
+                                    val code = generatedOtpCode ?: "123456"
+                                    otpDigits = code.map { it.toString() }
+                                },
+                                modifier = Modifier.testTag("auto_fill_otp_button")
+                            ) {
+                                Text("Auto Fill", fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+
+                    if (errorMessage != null) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = errorMessage ?: "",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
 
                     // 6-Digit OTP Box Grid
                     Row(
@@ -270,6 +322,7 @@ fun LoginScreen(
                         TextButton(
                             onClick = {
                                 currentStep = LoginStep.PHONE_INPUT
+                                errorMessage = null
                             },
                             modifier = Modifier.testTag("change_phone_button")
                         ) {
@@ -281,7 +334,9 @@ fun LoginScreen(
                         TextButton(
                             onClick = {
                                 if (timerSeconds == 0) {
+                                    FirebaseRepository.sendOtp(phoneNumber)
                                     timerSeconds = 30
+                                    errorMessage = null
                                 }
                             },
                             enabled = timerSeconds == 0,
@@ -300,8 +355,20 @@ fun LoginScreen(
 
                     Button(
                         onClick = {
-                            isLoading = true
-                            onLoginSuccess()
+                            val enteredCode = otpDigits.joinToString("")
+                            if (enteredCode.length == 6) {
+                                isLoading = true
+                                val success = FirebaseRepository.verifyOtp(phoneNumber, enteredCode)
+                                isLoading = false
+                                if (success) {
+                                    errorMessage = null
+                                    onLoginSuccess()
+                                } else {
+                                    errorMessage = "Invalid OTP code. Please enter the correct 6-digit code."
+                                }
+                            } else {
+                                errorMessage = "Please enter all 6 digits of the OTP."
+                            }
                         },
                         modifier = Modifier
                             .fillMaxWidth()

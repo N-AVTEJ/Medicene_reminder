@@ -33,6 +33,19 @@ object FirebaseRepository {
         return firestoreInstance
     }
 
+    // Auth & Session State
+    private val _isLoggedIn = MutableStateFlow(false)
+    val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
+
+    private val _sessionToken = MutableStateFlow<String?>(null)
+    val sessionToken: StateFlow<String?> = _sessionToken.asStateFlow()
+
+    private val _generatedOtp = MutableStateFlow<String?>(null)
+    val generatedOtp: StateFlow<String?> = _generatedOtp.asStateFlow()
+
+    private val _isFirstTimeUser = MutableStateFlow(true)
+    val isFirstTimeUser: StateFlow<Boolean> = _isFirstTimeUser.asStateFlow()
+
     // Default Current User
     private val _currentUser = MutableStateFlow(
         User(
@@ -240,5 +253,72 @@ object FirebaseRepository {
                 }
             }
         }
+    }
+
+    /**
+     * Generates a 6-digit OTP code for the given phone number and saves it in state.
+     */
+    fun sendOtp(phoneNumber: String): String {
+        // Generate a 6-digit random code or default demo 123456
+        val otpCode = (100000..999999).random().toString()
+        _generatedOtp.value = otpCode
+
+        // Update phone number for user
+        val updatedUser = _currentUser.value.copy(phone = phoneNumber)
+        _currentUser.value = updatedUser
+
+        Log.d(TAG, "Generated OTP $otpCode for phone $phoneNumber")
+        return otpCode
+    }
+
+    /**
+     * Verifies the entered OTP code. Returns true if valid, creates a session token, and updates session state.
+     */
+    fun verifyOtp(phoneNumber: String, enteredOtp: String): Boolean {
+        val currentOtp = _generatedOtp.value
+        // Accept generated OTP or fallback 123456 for testing simplicity
+        val isValid = (enteredOtp == currentOtp || enteredOtp == "123456") && enteredOtp.length == 6
+
+        if (isValid) {
+            val token = "session_token_${System.currentTimeMillis()}_${(1000..9999).random()}"
+            _sessionToken.value = token
+            _isLoggedIn.value = true
+
+            // Update currentUser phone
+            val updatedUser = _currentUser.value.copy(
+                phone = phoneNumber.ifBlank { _currentUser.value.phone }
+            )
+            _currentUser.value = updatedUser
+
+            // Sync user session details to Firestore
+            val db = getFirestore()
+            if (db != null) {
+                CoroutineScope(Dispatchers.IO).launch {
+                    try {
+                        db.collection("users").document(updatedUser.id).set(updatedUser)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed syncing user to Firestore: ${e.message}")
+                    }
+                }
+            }
+        }
+
+        return isValid
+    }
+
+    /**
+     * Completes onboarding flow
+     */
+    fun completeOnboarding() {
+        _isFirstTimeUser.value = false
+    }
+
+    /**
+     * Clears user session and logs out
+     */
+    fun logout() {
+        _isLoggedIn.value = false
+        _sessionToken.value = null
+        _generatedOtp.value = null
     }
 }

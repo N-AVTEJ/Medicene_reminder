@@ -28,6 +28,7 @@ sealed class Screen(
     object FamilyContacts : Screen("contacts", "Family", Icons.Filled.ContactPhone, Icons.Outlined.ContactPhone)
     object Settings : Screen("settings", "Settings", Icons.Filled.Settings, Icons.Outlined.Settings)
     object Login : Screen("login", "Login", Icons.Filled.Person, Icons.Outlined.Person)
+    object Onboarding : Screen("onboarding", "Onboarding", Icons.Filled.Person, Icons.Outlined.Person)
     object ScanPrescription : Screen("scan_prescription", "Scan RX", Icons.Filled.CameraAlt, Icons.Filled.CameraAlt)
 
     companion object {
