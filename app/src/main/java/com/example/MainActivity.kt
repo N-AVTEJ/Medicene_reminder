@@ -26,6 +26,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        // Initialize persisted session state
+        FirebaseRepository.initSession(this.applicationContext)
+
         // Create notification channel
         NotificationHelper.createNotificationChannel(this)
 

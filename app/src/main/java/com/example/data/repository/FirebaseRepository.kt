@@ -20,7 +20,36 @@ import java.time.format.DateTimeFormatter
 object FirebaseRepository {
 
     private const val TAG = "FirebaseRepository"
+    private const val PREFS_NAME = "med_reminder_session_prefs"
+    private const val KEY_IS_LOGGED_IN = "is_logged_in"
+    private const val KEY_SESSION_TOKEN = "session_token"
+    private const val KEY_IS_FIRST_TIME = "is_first_time_user"
+    private const val KEY_USER_NAME = "user_name"
+    private const val KEY_USER_PHONE = "user_phone"
+
+    private var appContext: Context? = null
     private var firestoreInstance: FirebaseFirestore? = null
+
+    /**
+     * Initializes session state from SharedPreferences on app startup.
+     */
+    fun initSession(context: Context) {
+        appContext = context.applicationContext
+        val prefs = appContext?.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE) ?: return
+
+        val savedIsLoggedIn = prefs.getBoolean(KEY_IS_LOGGED_IN, false)
+        val savedToken = prefs.getString(KEY_SESSION_TOKEN, null)
+        val savedIsFirstTime = prefs.getBoolean(KEY_IS_FIRST_TIME, true)
+        val savedName = prefs.getString(KEY_USER_NAME, "Sarah Jenkins") ?: "Sarah Jenkins"
+        val savedPhone = prefs.getString(KEY_USER_PHONE, "+1 (555) 234-5678") ?: "+1 (555) 234-5678"
+
+        _isLoggedIn.value = savedIsLoggedIn
+        _sessionToken.value = savedToken
+        _isFirstTimeUser.value = savedIsFirstTime
+        _currentUser.value = _currentUser.value.copy(name = savedName, phone = savedPhone)
+
+        Log.d(TAG, "Session restored: isLoggedIn=$savedIsLoggedIn, token=$savedToken, firstTime=$savedIsFirstTime")
+    }
 
     private fun getFirestore(): FirebaseFirestore? {
         if (firestoreInstance == null) {
@@ -290,6 +319,15 @@ object FirebaseRepository {
             )
             _currentUser.value = updatedUser
 
+            // Persist session in SharedPreferences
+            appContext?.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)?.edit()?.apply {
+                putBoolean(KEY_IS_LOGGED_IN, true)
+                putString(KEY_SESSION_TOKEN, token)
+                putString(KEY_USER_PHONE, updatedUser.phone)
+                putString(KEY_USER_NAME, updatedUser.name)
+                apply()
+            }
+
             // Sync user session details to Firestore
             val db = getFirestore()
             if (db != null) {
@@ -311,6 +349,10 @@ object FirebaseRepository {
      */
     fun completeOnboarding() {
         _isFirstTimeUser.value = false
+        appContext?.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)?.edit()?.apply {
+            putBoolean(KEY_IS_FIRST_TIME, false)
+            apply()
+        }
     }
 
     /**
@@ -320,5 +362,11 @@ object FirebaseRepository {
         _isLoggedIn.value = false
         _sessionToken.value = null
         _generatedOtp.value = null
+
+        appContext?.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)?.edit()?.apply {
+            putBoolean(KEY_IS_LOGGED_IN, false)
+            putString(KEY_SESSION_TOKEN, null)
+            apply()
+        }
     }
 }
