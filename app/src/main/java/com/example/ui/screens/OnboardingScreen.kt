@@ -22,6 +22,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.repository.FirebaseRepository
 
+data class CountryOption(val code: String, val name: String, val flag: String)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OnboardingScreen(
@@ -33,13 +35,33 @@ fun OnboardingScreen(
     var relationship by remember { mutableStateOf("") }
     var contactPhone by remember { mutableStateOf("") }
 
-    var dropdownExpanded by remember { mutableStateOf(false) }
+    // Country Code State
+    var selectedCountryCode by remember { mutableStateOf("+1") }
+    var countryDropdownExpanded by remember { mutableStateOf(false) }
+
+    val countryOptions = remember {
+        listOf(
+            CountryOption("+1", "US/CA", "🇺🇸"),
+            CountryOption("+44", "UK", "🇬🇧"),
+            CountryOption("+91", "India", "🇮🇳"),
+            CountryOption("+61", "Australia", "🇦🇺"),
+            CountryOption("+49", "Germany", "🇩🇪"),
+            CountryOption("+81", "Japan", "🇯🇵")
+        )
+    }
+
+    var relationshipDropdownExpanded by remember { mutableStateOf(false) }
     val relationshipOptions = listOf("Son", "Daughter", "Other")
 
     // Validation logic
     val isNameValid = contactName.trim().isNotBlank()
     val isRelationshipValid = relationship.trim().isNotBlank() && relationshipOptions.contains(relationship.trim())
-    val isPhoneValid = contactPhone.trim().length >= 7
+    
+    val phoneDigits = contactPhone.filter { it.isDigit() }
+    val isPhoneValid = phoneDigits.length == 10
+    val isPhoneTouched = contactPhone.isNotEmpty()
+    val phoneHasError = isPhoneTouched && !isPhoneValid
+
     val isFormValid = isNameValid && isRelationshipValid && isPhoneValid
 
     Scaffold { innerPadding ->
@@ -109,12 +131,12 @@ fun OnboardingScreen(
                         .testTag("caregiver_name_input")
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
                 // Field 2: Relationship Dropdown (Son, Daughter, Other)
                 ExposedDropdownMenuBox(
-                    expanded = dropdownExpanded,
-                    onExpandedChange = { dropdownExpanded = !dropdownExpanded },
+                    expanded = relationshipDropdownExpanded,
+                    onExpandedChange = { relationshipDropdownExpanded = !relationshipDropdownExpanded },
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("caregiver_relationship_box")
@@ -124,7 +146,7 @@ fun OnboardingScreen(
                         onValueChange = {},
                         readOnly = true,
                         label = { Text("Relationship", style = MaterialTheme.typography.bodyLarge) },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = dropdownExpanded) },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = relationshipDropdownExpanded) },
                         colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
                         modifier = Modifier
                             .menuAnchor()
@@ -133,15 +155,15 @@ fun OnboardingScreen(
                     )
 
                     ExposedDropdownMenu(
-                        expanded = dropdownExpanded,
-                        onDismissRequest = { dropdownExpanded = false }
+                        expanded = relationshipDropdownExpanded,
+                        onDismissRequest = { relationshipDropdownExpanded = false }
                     ) {
                         relationshipOptions.forEach { option ->
                             DropdownMenuItem(
                                 text = { Text(option, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium) },
                                 onClick = {
                                     relationship = option
-                                    dropdownExpanded = false
+                                    relationshipDropdownExpanded = false
                                 },
                                 modifier = Modifier.testTag("relationship_option_$option")
                             )
@@ -149,26 +171,94 @@ fun OnboardingScreen(
                     }
                 }
 
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Field 3: Country Code + Phone Number Row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    // Country Code Selector
+                    ExposedDropdownMenuBox(
+                        expanded = countryDropdownExpanded,
+                        onExpandedChange = { countryDropdownExpanded = !countryDropdownExpanded },
+                        modifier = Modifier
+                            .width(115.dp)
+                            .testTag("country_code_box")
+                    ) {
+                        OutlinedTextField(
+                            value = selectedCountryCode,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Code") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = countryDropdownExpanded) },
+                            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                            textStyle = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            modifier = Modifier
+                                .menuAnchor()
+                                .fillMaxWidth()
+                                .testTag("country_code_input")
+                        )
+
+                        ExposedDropdownMenu(
+                            expanded = countryDropdownExpanded,
+                            onDismissRequest = { countryDropdownExpanded = false }
+                        ) {
+                            countryOptions.forEach { country ->
+                                DropdownMenuItem(
+                                    text = { Text("${country.flag} ${country.code} (${country.name})") },
+                                    onClick = {
+                                        selectedCountryCode = country.code
+                                        countryDropdownExpanded = false
+                                    },
+                                    modifier = Modifier.testTag("country_option_${country.code}")
+                                )
+                            }
+                        }
+                    }
+
+                    // 10-Digit Phone Input
+                    Column(modifier = Modifier.weight(1f)) {
+                        OutlinedTextField(
+                            value = contactPhone,
+                            onValueChange = { newValue ->
+                                val digitsOnly = newValue.filter { it.isDigit() }
+                                if (digitsOnly.length <= 10) {
+                                    contactPhone = digitsOnly
+                                }
+                            },
+                            label = { Text("Phone (10 digits)") },
+                            placeholder = { Text("5550192831") },
+                            leadingIcon = {
+                                Icon(Icons.Default.Phone, contentDescription = null, modifier = Modifier.size(22.dp))
+                            },
+                            isError = phoneHasError,
+                            textStyle = MaterialTheme.typography.titleMedium,
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("caregiver_phone_input")
+                        )
+                    }
+                }
+
+                // Error feedback directly under phone field
+                if (phoneHasError) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "⚠️ Phone number must be exactly 10 digits (${phoneDigits.length}/10 entered)",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("phone_validation_error_text")
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(16.dp))
-
-                // Field 3: Phone Number
-                OutlinedTextField(
-                    value = contactPhone,
-                    onValueChange = { contactPhone = it },
-                    label = { Text("Phone Number", style = MaterialTheme.typography.bodyLarge) },
-                    placeholder = { Text("e.g. +1 (555) 019-2831") },
-                    leadingIcon = {
-                        Icon(Icons.Default.Phone, contentDescription = null, modifier = Modifier.size(24.dp))
-                    },
-                    textStyle = MaterialTheme.typography.titleMedium,
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("caregiver_phone_input")
-                )
-
-                Spacer(modifier = Modifier.height(18.dp))
 
                 // Validation status feedback banner
                 if (!isFormValid) {
@@ -180,7 +270,12 @@ fun OnboardingScreen(
                             .testTag("caregiver_validation_banner")
                     ) {
                         Text(
-                            text = "⚠️ All fields (Name, Relationship, and Phone) are mandatory to continue.",
+                            text = when {
+                                !isNameValid -> "⚠️ Caregiver Name is required."
+                                !isRelationshipValid -> "⚠️ Relationship must be selected (Son, Daughter, or Other)."
+                                !isPhoneValid -> "⚠️ Caregiver phone number must be exactly 10 digits."
+                                else -> "⚠️ Please complete all fields to continue."
+                            },
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onErrorContainer,
@@ -197,7 +292,7 @@ fun OnboardingScreen(
                             .testTag("caregiver_valid_banner")
                     ) {
                         Text(
-                            text = "✅ Contact details valid! Tap Continue to proceed.",
+                            text = "✅ Valid contact: $selectedCountryCode $contactPhone ($contactName). Tap Continue to proceed.",
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
