@@ -29,15 +29,23 @@ data class CountryOption(val code: String, val name: String, val flag: String)
 fun OnboardingScreen(
     onCompleteOnboarding: () -> Unit
 ) {
-    val currentUser by FirebaseRepository.currentUser.collectAsStateWithLifecycle()
+    var onboardingStep by remember { mutableIntStateOf(1) } // 1: Primary Contact (Mandatory), 2: Backup Contact (Optional)
 
-    var contactName by remember { mutableStateOf("") }
-    var relationship by remember { mutableStateOf("") }
-    var contactPhone by remember { mutableStateOf("") }
+    // Primary Caregiver State
+    var primaryName by remember { mutableStateOf("") }
+    var primaryRelationship by remember { mutableStateOf("") }
+    var primaryPhone by remember { mutableStateOf("") }
+    var primaryCountryCode by remember { mutableStateOf("+1") }
+    var primaryCountryDropdownExpanded by remember { mutableStateOf(false) }
+    var primaryRelationshipDropdownExpanded by remember { mutableStateOf(false) }
 
-    // Country Code State
-    var selectedCountryCode by remember { mutableStateOf("+1") }
-    var countryDropdownExpanded by remember { mutableStateOf(false) }
+    // Backup Caregiver State (Optional)
+    var backupName by remember { mutableStateOf("") }
+    var backupRelationship by remember { mutableStateOf("") }
+    var backupPhone by remember { mutableStateOf("") }
+    var backupCountryCode by remember { mutableStateOf("+1") }
+    var backupCountryDropdownExpanded by remember { mutableStateOf(false) }
+    var backupRelationshipDropdownExpanded by remember { mutableStateOf(false) }
 
     val countryOptions = remember {
         listOf(
@@ -50,19 +58,24 @@ fun OnboardingScreen(
         )
     }
 
-    var relationshipDropdownExpanded by remember { mutableStateOf(false) }
     val relationshipOptions = listOf("Son", "Daughter", "Other")
 
-    // Validation logic
-    val isNameValid = contactName.trim().isNotBlank()
-    val isRelationshipValid = relationship.trim().isNotBlank() && relationshipOptions.contains(relationship.trim())
-    
-    val phoneDigits = contactPhone.filter { it.isDigit() }
-    val isPhoneValid = phoneDigits.length == 10
-    val isPhoneTouched = contactPhone.isNotEmpty()
-    val phoneHasError = isPhoneTouched && !isPhoneValid
+    // Validation logic for Primary Contact
+    val isPrimaryNameValid = primaryName.trim().isNotBlank()
+    val isPrimaryRelationshipValid = primaryRelationship.trim().isNotBlank() && relationshipOptions.contains(primaryRelationship.trim())
+    val primaryPhoneDigits = primaryPhone.filter { it.isDigit() }
+    val isPrimaryPhoneValid = primaryPhoneDigits.length == 10
+    val primaryPhoneHasError = primaryPhone.isNotEmpty() && !isPrimaryPhoneValid
+    val isPrimaryFormValid = isPrimaryNameValid && isPrimaryRelationshipValid && isPrimaryPhoneValid
 
-    val isFormValid = isNameValid && isRelationshipValid && isPhoneValid
+    // Validation logic for Backup Contact
+    val isBackupEmpty = backupName.trim().isEmpty() && backupRelationship.trim().isEmpty() && backupPhone.trim().isEmpty()
+    val isBackupNameValid = backupName.trim().isNotBlank()
+    val isBackupRelationshipValid = backupRelationship.trim().isNotBlank() && relationshipOptions.contains(backupRelationship.trim())
+    val backupPhoneDigits = backupPhone.filter { it.isDigit() }
+    val isBackupPhoneValid = backupPhoneDigits.length == 10
+    val backupPhoneHasError = backupPhone.isNotEmpty() && !isBackupPhoneValid
+    val isBackupFormValid = isBackupEmpty || (isBackupNameValid && isBackupRelationshipValid && isBackupPhoneValid)
 
     Scaffold { innerPadding ->
         Column(
@@ -78,255 +91,482 @@ fun OnboardingScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
+                // Header Icon & Step Indicator
                 Surface(
                     color = MaterialTheme.colorScheme.primaryContainer,
                     shape = RoundedCornerShape(24.dp),
-                    modifier = Modifier.size(76.dp)
+                    modifier = Modifier.size(72.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.Default.ContactPhone,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(42.dp)
+                            modifier = Modifier.size(40.dp)
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
-                    text = "Add Family Contact",
+                    text = if (onboardingStep == 1) "Add Primary Family Contact" else "Add Backup Contact (Optional)",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground
                 )
 
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = "A primary family contact is required to receive missed dose alerts for patient safety.",
+                    text = if (onboardingStep == 1)
+                        "Step 1 of 2 • Required for emergency missed-dose alerts"
+                    else
+                        "Step 2 of 2 • Optional fallback contact if primary caregiver is unreachable",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
                 )
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(20.dp))
 
-                // Field 1: Name
-                OutlinedTextField(
-                    value = contactName,
-                    onValueChange = { contactName = it },
-                    label = { Text("Name", style = MaterialTheme.typography.bodyLarge) },
-                    placeholder = { Text("e.g. David Miller") },
-                    leadingIcon = {
-                        Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(24.dp))
-                    },
-                    textStyle = MaterialTheme.typography.titleMedium,
-                    singleLine = true,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("caregiver_name_input")
-                )
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                // Field 2: Relationship Dropdown (Son, Daughter, Other)
-                ExposedDropdownMenuBox(
-                    expanded = relationshipDropdownExpanded,
-                    onExpandedChange = { relationshipDropdownExpanded = !relationshipDropdownExpanded },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("caregiver_relationship_box")
-                ) {
+                if (onboardingStep == 1) {
+                    // STEP 1: Primary Contact
+                    // Field 1: Name
                     OutlinedTextField(
-                        value = if (relationship.isEmpty()) "Select Relationship (Son/Daughter/Other)" else relationship,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Relationship", style = MaterialTheme.typography.bodyLarge) },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = relationshipDropdownExpanded) },
-                        colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                        value = primaryName,
+                        onValueChange = { primaryName = it },
+                        label = { Text("Name", style = MaterialTheme.typography.bodyLarge) },
+                        placeholder = { Text("e.g. David Miller") },
+                        leadingIcon = {
+                            Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(24.dp))
+                        },
+                        textStyle = MaterialTheme.typography.titleMedium,
+                        singleLine = true,
                         modifier = Modifier
-                            .menuAnchor()
                             .fillMaxWidth()
-                            .testTag("caregiver_relationship_input")
+                            .testTag("caregiver_name_input")
                     )
 
-                    ExposedDropdownMenu(
-                        expanded = relationshipDropdownExpanded,
-                        onDismissRequest = { relationshipDropdownExpanded = false }
-                    ) {
-                        relationshipOptions.forEach { option ->
-                            DropdownMenuItem(
-                                text = { Text(option, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium) },
-                                onClick = {
-                                    relationship = option
-                                    relationshipDropdownExpanded = false
-                                },
-                                modifier = Modifier.testTag("relationship_option_$option")
-                            )
-                        }
-                    }
-                }
+                    Spacer(modifier = Modifier.height(14.dp))
 
-                Spacer(modifier = Modifier.height(14.dp))
-
-                // Field 3: Country Code + Phone Number Row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.Top
-                ) {
-                    // Country Code Selector
+                    // Field 2: Relationship Dropdown
                     ExposedDropdownMenuBox(
-                        expanded = countryDropdownExpanded,
-                        onExpandedChange = { countryDropdownExpanded = !countryDropdownExpanded },
+                        expanded = primaryRelationshipDropdownExpanded,
+                        onExpandedChange = { primaryRelationshipDropdownExpanded = !primaryRelationshipDropdownExpanded },
                         modifier = Modifier
-                            .width(115.dp)
-                            .testTag("country_code_box")
+                            .fillMaxWidth()
+                            .testTag("caregiver_relationship_box")
                     ) {
                         OutlinedTextField(
-                            value = selectedCountryCode,
+                            value = if (primaryRelationship.isEmpty()) "Select Relationship (Son/Daughter/Other)" else primaryRelationship,
                             onValueChange = {},
                             readOnly = true,
-                            label = { Text("Code") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = countryDropdownExpanded) },
+                            label = { Text("Relationship", style = MaterialTheme.typography.bodyLarge) },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = primaryRelationshipDropdownExpanded) },
                             colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-                            textStyle = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                             modifier = Modifier
                                 .menuAnchor()
                                 .fillMaxWidth()
-                                .testTag("country_code_input")
+                                .testTag("caregiver_relationship_input")
                         )
 
                         ExposedDropdownMenu(
-                            expanded = countryDropdownExpanded,
-                            onDismissRequest = { countryDropdownExpanded = false }
+                            expanded = primaryRelationshipDropdownExpanded,
+                            onDismissRequest = { primaryRelationshipDropdownExpanded = false }
                         ) {
-                            countryOptions.forEach { country ->
+                            relationshipOptions.forEach { option ->
                                 DropdownMenuItem(
-                                    text = { Text("${country.flag} ${country.code} (${country.name})") },
+                                    text = { Text(option, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium) },
                                     onClick = {
-                                        selectedCountryCode = country.code
-                                        countryDropdownExpanded = false
+                                        primaryRelationship = option
+                                        primaryRelationshipDropdownExpanded = false
                                     },
-                                    modifier = Modifier.testTag("country_option_${country.code}")
+                                    modifier = Modifier.testTag("relationship_option_$option")
                                 )
                             }
                         }
                     }
 
-                    // 10-Digit Phone Input
-                    Column(modifier = Modifier.weight(1f)) {
-                        OutlinedTextField(
-                            value = contactPhone,
-                            onValueChange = { newValue ->
-                                val digitsOnly = newValue.filter { it.isDigit() }
-                                if (digitsOnly.length <= 10) {
-                                    contactPhone = digitsOnly
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Field 3: Country Code + Phone Row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        ExposedDropdownMenuBox(
+                            expanded = primaryCountryDropdownExpanded,
+                            onExpandedChange = { primaryCountryDropdownExpanded = !primaryCountryDropdownExpanded },
+                            modifier = Modifier
+                                .width(115.dp)
+                                .testTag("country_code_box")
+                        ) {
+                            OutlinedTextField(
+                                value = primaryCountryCode,
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Code") },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = primaryCountryDropdownExpanded) },
+                                colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                                textStyle = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                modifier = Modifier
+                                    .menuAnchor()
+                                    .fillMaxWidth()
+                                    .testTag("country_code_input")
+                            )
+
+                            ExposedDropdownMenu(
+                                expanded = primaryCountryDropdownExpanded,
+                                onDismissRequest = { primaryCountryDropdownExpanded = false }
+                            ) {
+                                countryOptions.forEach { country ->
+                                    DropdownMenuItem(
+                                        text = { Text("${country.flag} ${country.code} (${country.name})") },
+                                        onClick = {
+                                            primaryCountryCode = country.code
+                                            primaryCountryDropdownExpanded = false
+                                        },
+                                        modifier = Modifier.testTag("country_option_${country.code}")
+                                    )
                                 }
-                            },
-                            label = { Text("Phone (10 digits)") },
-                            placeholder = { Text("5550192831") },
-                            leadingIcon = {
-                                Icon(Icons.Default.Phone, contentDescription = null, modifier = Modifier.size(22.dp))
-                            },
-                            isError = phoneHasError,
-                            textStyle = MaterialTheme.typography.titleMedium,
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                            }
+                        }
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            OutlinedTextField(
+                                value = primaryPhone,
+                                onValueChange = { newValue ->
+                                    val digitsOnly = newValue.filter { it.isDigit() }
+                                    if (digitsOnly.length <= 10) {
+                                        primaryPhone = digitsOnly
+                                    }
+                                },
+                                label = { Text("Phone (10 digits)") },
+                                placeholder = { Text("5550192831") },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Phone, contentDescription = null, modifier = Modifier.size(22.dp))
+                                },
+                                isError = primaryPhoneHasError,
+                                textStyle = MaterialTheme.typography.titleMedium,
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("caregiver_phone_input")
+                            )
+                        }
+                    }
+
+                    if (primaryPhoneHasError) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "⚠️ Phone number must be exactly 10 digits (${primaryPhoneDigits.length}/10 entered)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                            fontWeight = FontWeight.Bold,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .testTag("caregiver_phone_input")
+                                .testTag("phone_validation_error_text")
                         )
                     }
-                }
 
-                // Error feedback directly under phone field
-                if (phoneHasError) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "⚠️ Phone number must be exactly 10 digits (${phoneDigits.length}/10 entered)",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("phone_validation_error_text")
-                    )
-                }
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Validation status feedback banner
-                if (!isFormValid) {
-                    Surface(
-                        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.6f),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("caregiver_validation_banner")
-                    ) {
-                        Text(
-                            text = when {
-                                !isNameValid -> "⚠️ Caregiver Name is required."
-                                !isRelationshipValid -> "⚠️ Relationship must be selected (Son, Daughter, or Other)."
-                                !isPhoneValid -> "⚠️ Caregiver phone number must be exactly 10 digits."
-                                else -> "⚠️ Please complete all fields to continue."
-                            },
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onErrorContainer,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(12.dp)
-                        )
+                    if (!isPrimaryFormValid) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.6f),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("caregiver_validation_banner")
+                        ) {
+                            Text(
+                                text = when {
+                                    !isPrimaryNameValid -> "⚠️ Primary Caregiver Name is required."
+                                    !isPrimaryRelationshipValid -> "⚠️ Relationship must be selected (Son, Daughter, or Other)."
+                                    !isPrimaryPhoneValid -> "⚠️ Caregiver phone number must be exactly 10 digits."
+                                    else -> "⚠️ Please complete all fields to continue."
+                                },
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(12.dp)
+                            )
+                        }
+                    } else {
+                        Surface(
+                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("caregiver_valid_banner")
+                        ) {
+                            Text(
+                                text = "✅ Primary contact valid: $primaryCountryCode $primaryPhone ($primaryName).",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(12.dp)
+                            )
+                        }
                     }
                 } else {
-                    Surface(
-                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
-                        shape = RoundedCornerShape(12.dp),
+                    // STEP 2: Backup Contact (Optional & Skippable)
+                    // Field 1: Backup Name
+                    OutlinedTextField(
+                        value = backupName,
+                        onValueChange = { backupName = it },
+                        label = { Text("Backup Contact Name", style = MaterialTheme.typography.bodyLarge) },
+                        placeholder = { Text("e.g. Dr. Robert Vance") },
+                        leadingIcon = {
+                            Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(24.dp))
+                        },
+                        textStyle = MaterialTheme.typography.titleMedium,
+                        singleLine = true,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .testTag("caregiver_valid_banner")
+                            .testTag("backup_caregiver_name_input")
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Field 2: Backup Relationship Dropdown
+                    ExposedDropdownMenuBox(
+                        expanded = backupRelationshipDropdownExpanded,
+                        onExpandedChange = { backupRelationshipDropdownExpanded = !backupRelationshipDropdownExpanded },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("backup_caregiver_relationship_box")
                     ) {
-                        Text(
-                            text = "✅ Valid contact: $selectedCountryCode $contactPhone ($contactName). Tap Continue to proceed.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(12.dp)
+                        OutlinedTextField(
+                            value = if (backupRelationship.isEmpty()) "Select Relationship (Son/Daughter/Other)" else backupRelationship,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Relationship", style = MaterialTheme.typography.bodyLarge) },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = backupRelationshipDropdownExpanded) },
+                            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                            modifier = Modifier
+                                .menuAnchor()
+                                .fillMaxWidth()
+                                .testTag("backup_caregiver_relationship_input")
                         )
+
+                        ExposedDropdownMenu(
+                            expanded = backupRelationshipDropdownExpanded,
+                            onDismissRequest = { backupRelationshipDropdownExpanded = false }
+                        ) {
+                            relationshipOptions.forEach { option ->
+                                DropdownMenuItem(
+                                    text = { Text(option, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium) },
+                                    onClick = {
+                                        backupRelationship = option
+                                        backupRelationshipDropdownExpanded = false
+                                    },
+                                    modifier = Modifier.testTag("backup_relationship_option_$option")
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Field 3: Backup Country Code + Phone Row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        ExposedDropdownMenuBox(
+                            expanded = backupCountryDropdownExpanded,
+                            onExpandedChange = { backupCountryDropdownExpanded = !backupCountryDropdownExpanded },
+                            modifier = Modifier
+                                .width(115.dp)
+                                .testTag("backup_country_code_box")
+                        ) {
+                            OutlinedTextField(
+                                value = backupCountryCode,
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Code") },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = backupCountryDropdownExpanded) },
+                                colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                                textStyle = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                modifier = Modifier
+                                    .menuAnchor()
+                                    .fillMaxWidth()
+                                    .testTag("backup_country_code_input")
+                            )
+
+                            ExposedDropdownMenu(
+                                expanded = backupCountryDropdownExpanded,
+                                onDismissRequest = { backupCountryDropdownExpanded = false }
+                            ) {
+                                countryOptions.forEach { country ->
+                                    DropdownMenuItem(
+                                        text = { Text("${country.flag} ${country.code} (${country.name})") },
+                                        onClick = {
+                                            backupCountryCode = country.code
+                                            backupCountryDropdownExpanded = false
+                                        },
+                                        modifier = Modifier.testTag("backup_country_option_${country.code}")
+                                    )
+                                }
+                            }
+                        }
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            OutlinedTextField(
+                                value = backupPhone,
+                                onValueChange = { newValue ->
+                                    val digitsOnly = newValue.filter { it.isDigit() }
+                                    if (digitsOnly.length <= 10) {
+                                        backupPhone = digitsOnly
+                                    }
+                                },
+                                label = { Text("Phone (10 digits)") },
+                                placeholder = { Text("5550192831") },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Phone, contentDescription = null, modifier = Modifier.size(22.dp))
+                                },
+                                isError = backupPhoneHasError,
+                                textStyle = MaterialTheme.typography.titleMedium,
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("backup_caregiver_phone_input")
+                            )
+                        }
+                    }
+
+                    if (backupPhoneHasError) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "⚠️ Backup phone number must be 10 digits (${backupPhoneDigits.length}/10 entered)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("backup_phone_validation_error_text")
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    if (!isBackupFormValid) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.6f),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("backup_caregiver_validation_banner")
+                        ) {
+                            Text(
+                                text = "⚠️ If adding a backup contact, Name, Relationship, and 10-digit Phone are required.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(12.dp)
+                            )
+                        }
+                    } else if (!isBackupEmpty) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("backup_caregiver_valid_banner")
+                        ) {
+                            Text(
+                                text = "✅ Backup contact valid: $backupCountryCode $backupPhone ($backupName).",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(12.dp)
+                            )
+                        }
                     }
                 }
             }
 
             // Bottom Navigation Action
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Button(
-                    onClick = {
-                        if (isFormValid) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                if (onboardingStep == 1) {
+                    Button(
+                        onClick = {
+                            if (isPrimaryFormValid) {
+                                onboardingStep = 2
+                            }
+                        },
+                        enabled = isPrimaryFormValid,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(58.dp)
+                            .testTag("caregiver_continue_button"),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Text(
+                            text = "Continue to Backup Contact",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                } else {
+                    Button(
+                        onClick = {
+                            if (isBackupFormValid) {
+                                FirebaseRepository.completeOnboarding()
+                                onCompleteOnboarding()
+                            }
+                        },
+                        enabled = isBackupFormValid,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(58.dp)
+                            .testTag("backup_caregiver_continue_button"),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Text(
+                            text = if (isBackupEmpty) "Complete Setup" else "Save Backup & Complete Setup",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    TextButton(
+                        onClick = {
                             FirebaseRepository.completeOnboarding()
                             onCompleteOnboarding()
-                        }
-                    },
-                    enabled = isFormValid,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(58.dp)
-                        .testTag("caregiver_continue_button"),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Text(
-                        text = "Continue",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("skip_backup_contact_button")
+                    ) {
+                        Text(
+                            text = "Skip for Now",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                    }
                 }
             }
         }
     }
 }
+
 
