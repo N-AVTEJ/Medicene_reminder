@@ -527,6 +527,14 @@ fun OnboardingScreen(
                     Button(
                         onClick = {
                             if (isBackupFormValid) {
+                                FirebaseRepository.saveOnboardingCaregivers(
+                                    primaryName = primaryName,
+                                    primaryRelation = primaryRelationship,
+                                    primaryPhone = "$primaryCountryCode $primaryPhone",
+                                    backupName = if (backupName.isNotBlank()) backupName else null,
+                                    backupRelation = backupRelationship,
+                                    backupPhone = if (backupPhone.isNotBlank()) "$backupCountryCode $backupPhone" else null
+                                )
                                 FirebaseRepository.completeOnboarding()
                                 onCompleteOnboarding()
                             }
@@ -549,6 +557,14 @@ fun OnboardingScreen(
 
                     TextButton(
                         onClick = {
+                            FirebaseRepository.saveOnboardingCaregivers(
+                                primaryName = primaryName,
+                                primaryRelation = primaryRelationship,
+                                primaryPhone = "$primaryCountryCode $primaryPhone",
+                                backupName = null,
+                                backupRelation = null,
+                                backupPhone = null
+                            )
                             FirebaseRepository.completeOnboarding()
                             onCompleteOnboarding()
                         },

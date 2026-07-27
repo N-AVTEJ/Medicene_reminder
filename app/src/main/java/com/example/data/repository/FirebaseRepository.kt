@@ -96,6 +96,9 @@ object FirebaseRepository {
     private val _reminders = MutableStateFlow<List<Reminder>>(emptyList())
     val reminders: StateFlow<List<Reminder>> = _reminders.asStateFlow()
 
+    private val _familyContacts = MutableStateFlow<List<FamilyContact>>(emptyList())
+    val familyContacts: StateFlow<List<FamilyContact>> = _familyContacts.asStateFlow()
+
     init {
         // Pre-populate with realistic initial state
         setupInitialData()
@@ -130,15 +133,23 @@ object FirebaseRepository {
         _doses.value = allDoses
         _reminders.value = allReminders
 
+        val initialContacts = listOf(
+            FamilyContact("1", defaultUser.id, "David Miller", "Son (Primary Caregiver)", "+1 (555) 019-2831", true),
+            FamilyContact("2", defaultUser.id, "Elena Miller", "Daughter", "+1 (555) 014-4920", false),
+            FamilyContact("3", defaultUser.id, "Dr. Robert Vance", "Primary Physician", "+1 (555) 012-8811", false)
+        )
+        _familyContacts.value = initialContacts
+
         // Attempt Firestore initial sync
-        syncToFirestore(defaultUser, initialMeds, allDoses, allReminders)
+        syncToFirestore(defaultUser, initialMeds, allDoses, allReminders, initialContacts)
     }
 
     private fun syncToFirestore(
         user: User,
         meds: List<Medicine>,
         dosesList: List<Dose>,
-        remindersList: List<Reminder>
+        remindersList: List<Reminder>,
+        contactsList: List<FamilyContact> = emptyList()
     ) {
         val db = getFirestore() ?: return
         CoroutineScope(Dispatchers.IO).launch {
@@ -156,9 +167,104 @@ object FirebaseRepository {
                 remindersList.forEach { rem ->
                     db.collection("reminders").document(rem.id).set(rem)
                 }
+
+                contactsList.forEach { contact ->
+                    db.collection("users")
+                        .document(user.id)
+                        .collection("caregivers")
+                        .document(contact.id)
+                        .set(contact)
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Sync to Firestore failed: ${e.message}")
             }
+        }
+    }
+
+    /**
+     * Adds a family contact, syncing to state flow and Firestore under logged-in user
+     */
+    fun addFamilyContact(contact: FamilyContact) {
+        val currentUserVal = _currentUser.value
+        val contactWithUserId = contact.copy(userId = currentUserVal.id)
+
+        val updatedList = _familyContacts.value.filter { it.id != contactWithUserId.id } + contactWithUserId
+        _familyContacts.value = updatedList
+
+        val db = getFirestore()
+        if (db != null) {
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    db.collection("users")
+                        .document(currentUserVal.id)
+                        .collection("caregivers")
+                        .document(contactWithUserId.id)
+                        .set(contactWithUserId)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed writing caregiver to Firestore: ${e.message}")
+                }
+            }
+        }
+    }
+
+    /**
+     * Deletes a family contact by ID from state flow and Firestore
+     */
+    fun deleteFamilyContact(contactId: String) {
+        val currentUserVal = _currentUser.value
+        _familyContacts.value = _familyContacts.value.filter { it.id != contactId }
+
+        val db = getFirestore()
+        if (db != null) {
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    db.collection("users")
+                        .document(currentUserVal.id)
+                        .collection("caregivers")
+                        .document(contactId)
+                        .delete()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed deleting caregiver from Firestore: ${e.message}")
+                }
+            }
+        }
+    }
+
+    /**
+     * Saves primary and optional backup caregiver data collected during onboarding
+     */
+    fun saveOnboardingCaregivers(
+        primaryName: String,
+        primaryRelation: String,
+        primaryPhone: String,
+        backupName: String? = null,
+        backupRelation: String? = null,
+        backupPhone: String? = null
+    ) {
+        val currentUserId = _currentUser.value.id
+
+        if (primaryName.isNotBlank()) {
+            val primaryContact = FamilyContact(
+                id = "caregiver_primary_${System.currentTimeMillis()}",
+                userId = currentUserId,
+                name = primaryName.trim(),
+                relation = primaryRelation.trim().ifBlank { "Primary Caregiver" },
+                phone = primaryPhone.trim(),
+                isPrimaryCaregiver = true
+            )
+            addFamilyContact(primaryContact)
+        }
+
+        if (!backupName.isNullOrBlank()) {
+            val backupContact = FamilyContact(
+                id = "caregiver_backup_${System.currentTimeMillis()}",
+                userId = currentUserId,
+                name = backupName.trim(),
+                relation = backupRelation?.trim()?.ifBlank { "Backup Caregiver" } ?: "Backup Caregiver",
+                phone = backupPhone?.trim().orEmpty(),
+                isPrimaryCaregiver = false
+            )
+            addFamilyContact(backupContact)
         }
     }
 

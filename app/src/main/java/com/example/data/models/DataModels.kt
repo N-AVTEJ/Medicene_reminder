@@ -1,5 +1,14 @@
 package com.example.data.models
 
+data class FamilyContact(
+    val id: String = "",
+    val userId: String = "user_sarah_1",
+    val name: String = "",
+    val relation: String = "",
+    val phone: String = "",
+    val isPrimaryCaregiver: Boolean = false
+)
+
 data class User(
     val id: String = "user_sarah_1",
     val name: String = "Sarah Jenkins",

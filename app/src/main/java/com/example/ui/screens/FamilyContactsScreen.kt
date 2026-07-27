@@ -20,26 +20,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-
-data class FamilyContact(
-    val id: String,
-    val name: String,
-    val relation: String,
-    val phone: String,
-    val isPrimaryCaregiver: Boolean
-)
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.data.models.FamilyContact
+import com.example.data.repository.FirebaseRepository
 
 @Composable
 fun FamilyContactsScreen() {
-    var contacts by remember {
-        mutableStateOf(
-            listOf(
-                FamilyContact("1", "David Miller", "Son (Primary Caregiver)", "+1 (555) 019-2831", true),
-                FamilyContact("2", "Elena Miller", "Daughter", "+1 (555) 014-4920", false),
-                FamilyContact("3", "Dr. Robert Vance", "Primary Physician", "+1 (555) 012-8811", false)
-            )
-        )
-    }
+    val contacts by FirebaseRepository.familyContacts.collectAsStateWithLifecycle()
 
     var showAddDialog by remember { mutableStateOf(false) }
     var nameInput by remember { mutableStateOf("") }
@@ -193,7 +180,7 @@ fun FamilyContactsScreen() {
                                 }
                                 IconButton(
                                     onClick = {
-                                        contacts = contacts.filter { it.id != contact.id }
+                                        FirebaseRepository.deleteFamilyContact(contact.id)
                                     },
                                     modifier = Modifier
                                         .size(48.dp)
@@ -261,12 +248,12 @@ fun FamilyContactsScreen() {
                         if (nameInput.isNotBlank()) {
                             val newContact = FamilyContact(
                                 id = System.currentTimeMillis().toString(),
-                                name = nameInput,
-                                relation = if (relationInput.isBlank()) "Caregiver" else relationInput,
-                                phone = if (phoneInput.isBlank()) "+1 555-0000" else phoneInput,
+                                name = nameInput.trim(),
+                                relation = if (relationInput.isBlank()) "Caregiver" else relationInput.trim(),
+                                phone = if (phoneInput.isBlank()) "+1 555-0000" else phoneInput.trim(),
                                 isPrimaryCaregiver = false
                             )
-                            contacts = contacts + newContact
+                            FirebaseRepository.addFamilyContact(newContact)
                             nameInput = ""
                             relationInput = ""
                             phoneInput = ""
