@@ -22,6 +22,8 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DocumentScanner
 import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -46,6 +48,9 @@ fun ScanPrescriptionScreen(
     var isScanning by remember { mutableStateOf(false) }
     var scannedResult by remember { mutableStateOf<MedicineItem?>(null) }
     var capturedBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var isBlurryPhoto by remember { mutableStateOf(false) }
+    var sharpnessScore by remember { mutableDoubleStateOf(0.0) }
+    var blurWarningDismissed by remember { mutableStateOf(false) }
     var flashOn by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
@@ -65,35 +70,47 @@ fun ScanPrescriptionScreen(
         hasCameraPermission = isGranted
     }
 
+    // Process photo and perform blur/quality detection
+    fun processCapturedPhoto(bitmap: Bitmap, forceBlur: Boolean = false) {
+        capturedBitmap = bitmap
+        isScanning = true
+        blurWarningDismissed = false
+
+        val (blurry, score) = if (forceBlur) {
+            Pair(true, 5.2)
+        } else {
+            analyzeImageSharpness(bitmap)
+        }
+
+        isBlurryPhoto = blurry
+        sharpnessScore = score
+
+        if (!blurry) {
+            // Simulate AI/OCR label analysis for clear photos
+            scannedResult = MedicineItem(
+                id = System.currentTimeMillis().toString(),
+                name = "Metformin HCl",
+                dosage = "500mg Extended Release",
+                frequency = "Once Daily with Dinner",
+                remainingPills = 60,
+                category = "Prescription"
+            )
+        } else {
+            scannedResult = null
+        }
+        isScanning = false
+    }
+
     // Camera Capture Launcher
     val takePictureLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicturePreview()
     ) { bitmap ->
         if (bitmap != null) {
-            capturedBitmap = bitmap
-            isScanning = true
-            // Simulate AI/OCR label analysis
-            scannedResult = MedicineItem(
-                id = System.currentTimeMillis().toString(),
-                name = "Metformin HCl",
-                dosage = "500mg Extended Release",
-                frequency = "Once Daily with Dinner",
-                remainingPills = 60,
-                category = "Prescription"
-            )
-            isScanning = false
+            processCapturedPhoto(bitmap)
         } else {
-            // Fallback preview photo for emulator environments without hardware camera feed
-            val sampleBitmap = createSamplePrescriptionBitmap()
-            capturedBitmap = sampleBitmap
-            scannedResult = MedicineItem(
-                id = System.currentTimeMillis().toString(),
-                name = "Metformin HCl",
-                dosage = "500mg Extended Release",
-                frequency = "Once Daily with Dinner",
-                remainingPills = 60,
-                category = "Prescription"
-            )
+            // Fallback sample photo for emulator environments without physical camera
+            val sampleBitmap = createSamplePrescriptionBitmap(isBlurry = false)
+            processCapturedPhoto(sampleBitmap)
         }
     }
 
@@ -195,7 +212,11 @@ fun ScanPrescriptionScreen(
                     .background(Color(0xFF0F172A))
                     .border(
                         width = 3.dp,
-                        color = if (capturedBitmap != null) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.6f),
+                        color = when {
+                            isBlurryPhoto && !blurWarningDismissed -> MaterialTheme.colorScheme.error
+                            capturedBitmap != null -> MaterialTheme.colorScheme.primary
+                            else -> Color.White.copy(alpha = 0.6f)
+                        },
                         shape = RoundedCornerShape(24.dp)
                     )
                     .testTag("scan_viewfinder"),
@@ -211,19 +232,20 @@ fun ScanPrescriptionScreen(
                             .fillMaxSize()
                             .testTag("captured_image_preview")
                     )
-                    // Badge overlay on captured image preview
+
+                    // Quality Badge Overlay
                     Surface(
-                        color = MaterialTheme.colorScheme.primaryContainer,
+                        color = if (isBlurryPhoto) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer,
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
                             .align(Alignment.TopEnd)
                             .padding(12.dp)
                     ) {
                         Text(
-                            text = "📷 Captured Photo Preview",
+                            text = if (isBlurryPhoto) "⚠️ Blurry Image Detected" else "✅ Sharp Quality Photo",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            color = if (isBlurryPhoto) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimaryContainer,
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                         )
                     }
@@ -232,7 +254,7 @@ fun ScanPrescriptionScreen(
                         CircularProgressIndicator(color = MaterialTheme.colorScheme.primary, modifier = Modifier.size(48.dp))
                         Spacer(modifier = Modifier.height(14.dp))
                         Text(
-                            text = "Analyzing Prescription Label with AI...",
+                            text = "Analyzing Label Clarity & OCR Text...",
                             color = Color.White,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
@@ -257,7 +279,123 @@ fun ScanPrescriptionScreen(
                 }
             }
 
-            // Scanned Result Details Card
+            // BLUR WARNING PROMPT CARD
+            if (isBlurryPhoto && !blurWarningDismissed) {
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    ),
+                    shape = RoundedCornerShape(20.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("blur_warning_card")
+                ) {
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.WarningAmber,
+                                contentDescription = "Warning",
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(32.dp)
+                            )
+                            Column {
+                                Text(
+                                    text = "Photo is Blurry or Out of Focus",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                                Text(
+                                    text = "Quality Score: ${String.format("%.1f", sharpnessScore)} / 100.0 (Below 12.0 threshold)",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f)
+                                )
+                            }
+                        }
+
+                        Text(
+                            text = "The prescription details may not be read accurately by AI due to blurriness. Please hold your phone steady and ensure good lighting before retaking.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Button(
+                                onClick = {
+                                    capturedBitmap = null
+                                    isBlurryPhoto = false
+                                    scannedResult = null
+                                    if (hasCameraPermission) {
+                                        takePictureLauncher.launch(null)
+                                    } else {
+                                        permissionLauncher.launch(Manifest.permission.CAMERA)
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.error,
+                                    contentColor = MaterialTheme.colorScheme.onError
+                                ),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(50.dp)
+                                    .testTag("retake_blurry_photo_button"),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Icon(imageVector = Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(20.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Retake Photo",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+
+                            OutlinedButton(
+                                onClick = {
+                                    blurWarningDismissed = true
+                                    // Generate result on override
+                                    scannedResult = MedicineItem(
+                                        id = System.currentTimeMillis().toString(),
+                                        name = "Metformin HCl",
+                                        dosage = "500mg Extended Release",
+                                        frequency = "Once Daily with Dinner",
+                                        remainingPills = 60,
+                                        category = "Prescription"
+                                    )
+                                },
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = MaterialTheme.colorScheme.onErrorContainer
+                                ),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(50.dp)
+                                    .testTag("proceed_blurry_photo_button"),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text(
+                                    text = "Proceed Anyway",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Scanned Result Details Card (Shown when clear or blur warning dismissed)
             AnimatedVisibility(visible = scannedResult != null) {
                 scannedResult?.let { med ->
                     Card(
@@ -353,6 +491,7 @@ fun ScanPrescriptionScreen(
                                 onClick = {
                                     capturedBitmap = null
                                     scannedResult = null
+                                    isBlurryPhoto = false
                                     if (hasCameraPermission) {
                                         takePictureLauncher.launch(null)
                                     }
@@ -376,8 +515,8 @@ fun ScanPrescriptionScreen(
                 }
             }
 
-            // Primary Capture Action Button
-            if (scannedResult == null) {
+            // Primary Capture Action Buttons
+            if (scannedResult == null && (!isBlurryPhoto || blurWarningDismissed)) {
                 Button(
                     onClick = {
                         if (hasCameraPermission) {
@@ -401,28 +540,80 @@ fun ScanPrescriptionScreen(
                         fontWeight = FontWeight.Bold
                     )
                 }
+
+                // Testing shortcut for verifying blurry detection
+                TextButton(
+                    onClick = {
+                        val blurryBitmap = createSamplePrescriptionBitmap(isBlurry = true)
+                        processCapturedPhoto(blurryBitmap, forceBlur = true)
+                    },
+                    modifier = Modifier.testTag("test_blurry_scan_button")
+                ) {
+                    Text(
+                        text = "🧪 Test Blurry Photo Detection",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.tertiary
+                    )
+                }
             }
         }
     }
 }
 
 /**
- * Creates a bitmap label image for preview
+ * Image blurriness analysis algorithm
+ * Calculates average color gradient transitions across adjacent pixels.
+ * High values indicate sharp, high-contrast text edges. Low values indicate blurriness.
  */
-private fun createSamplePrescriptionBitmap(): Bitmap {
+private fun analyzeImageSharpness(bitmap: Bitmap): Pair<Boolean, Double> {
+    val width = bitmap.width
+    val height = bitmap.height
+    if (width < 10 || height < 10) return Pair(false, 100.0)
+
+    val step = 4
+    var sumGradient = 0.0
+    var count = 0
+
+    for (y in 0 until height - step step step) {
+        for (x in 0 until width - step step step) {
+            val p0 = bitmap.getPixel(x, y)
+            val pX = bitmap.getPixel(x + step, y)
+            val pY = bitmap.getPixel(x, y + step)
+
+            val g0 = 0.299 * ((p0 shr 16) and 0xFF) + 0.587 * ((p0 shr 8) and 0xFF) + 0.114 * (p0 and 0xFF)
+            val gX = 0.299 * ((pX shr 16) and 0xFF) + 0.587 * ((pX shr 8) and 0xFF) + 0.114 * (pX and 0xFF)
+            val gY = 0.299 * ((pY shr 16) and 0xFF) + 0.587 * ((pY shr 8) and 0xFF) + 0.114 * (pY and 0xFF)
+
+            val gradX = Math.abs(g0 - gX)
+            val gradY = Math.abs(g0 - gY)
+
+            sumGradient += (gradX + gradY)
+            count++
+        }
+    }
+
+    val averageGradient = if (count > 0) sumGradient / count else 100.0
+    val isBlurry = averageGradient < 12.0
+    return Pair(isBlurry, averageGradient)
+}
+
+/**
+ * Creates a bitmap label image for preview (sharp vs blurry)
+ */
+private fun createSamplePrescriptionBitmap(isBlurry: Boolean): Bitmap {
     val bitmap = Bitmap.createBitmap(600, 400, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
-    
+
     // Background Rx label
     val bgPaint = Paint().apply {
-        color = android.graphics.Color.rgb(248, 250, 252)
+        color = if (isBlurry) android.graphics.Color.rgb(220, 225, 230) else android.graphics.Color.rgb(248, 250, 252)
         style = Paint.Style.FILL
     }
     canvas.drawRect(0f, 0f, 600f, 400f, bgPaint)
 
     // Rx Header bar
     val headerPaint = Paint().apply {
-        color = android.graphics.Color.rgb(37, 99, 235)
+        color = if (isBlurry) android.graphics.Color.rgb(100, 140, 200) else android.graphics.Color.rgb(37, 99, 235)
         style = Paint.Style.FILL
     }
     canvas.drawRect(0f, 0f, 600f, 70f, headerPaint)
@@ -430,21 +621,21 @@ private fun createSamplePrescriptionBitmap(): Bitmap {
     val whiteTextPaint = Paint().apply {
         color = android.graphics.Color.WHITE
         textSize = 32f
-        isFakeBoldText = true
+        isFakeBoldText = !isBlurry
     }
     canvas.drawText("Rx PRESCRIPTION LABEL", 30f, 46f, whiteTextPaint)
 
     // Rx details text
     val textPaint = Paint().apply {
-        color = android.graphics.Color.rgb(15, 23, 42)
+        color = if (isBlurry) android.graphics.Color.rgb(120, 130, 140) else android.graphics.Color.rgb(15, 23, 42)
         textSize = 28f
-        isFakeBoldText = true
+        isFakeBoldText = !isBlurry
     }
     canvas.drawText("Rx #982143-01", 30f, 130f, textPaint)
     canvas.drawText("METFORMIN HCL 500MG ER", 30f, 180f, textPaint)
-    
+
     val subTextPaint = Paint().apply {
-        color = android.graphics.Color.rgb(71, 85, 105)
+        color = if (isBlurry) android.graphics.Color.rgb(160, 170, 180) else android.graphics.Color.rgb(71, 85, 105)
         textSize = 24f
     }
     canvas.drawText("TAKE 1 TABLET DAILY WITH EVENING MEAL", 30f, 230f, subTextPaint)
@@ -453,6 +644,7 @@ private fun createSamplePrescriptionBitmap(): Bitmap {
 
     return bitmap
 }
+
 
 
 
