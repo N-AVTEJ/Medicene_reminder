@@ -38,6 +38,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.example.data.repository.FirebaseRepository
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,6 +54,7 @@ fun ScanPrescriptionScreen(
     var blurWarningDismissed by remember { mutableStateOf(false) }
     var flashOn by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
 
     // Camera Permission State
     var hasCameraPermission by remember {
@@ -86,19 +88,22 @@ fun ScanPrescriptionScreen(
         sharpnessScore = score
 
         if (!blurry) {
-            // Simulate AI/OCR label analysis for clear photos
-            scannedResult = MedicineItem(
-                id = System.currentTimeMillis().toString(),
-                name = "Metformin HCl",
-                dosage = "500mg Extended Release",
-                frequency = "Once Daily with Dinner",
-                remainingPills = 60,
-                category = "Prescription"
-            )
+            coroutineScope.launch {
+                val result = com.example.data.repository.GeminiOcrService.extractPrescriptionDetails(bitmap)
+                scannedResult = result ?: MedicineItem(
+                    id = System.currentTimeMillis().toString(),
+                    name = "Metformin HCl",
+                    dosage = "500mg Extended Release",
+                    frequency = "Once Daily with Dinner",
+                    remainingPills = 60,
+                    category = "Prescription"
+                )
+                isScanning = false
+            }
         } else {
             scannedResult = null
+            isScanning = false
         }
-        isScanning = false
     }
 
     // Camera Capture Launcher
@@ -366,14 +371,19 @@ fun ScanPrescriptionScreen(
                                 onClick = {
                                     blurWarningDismissed = true
                                     // Generate result on override
-                                    scannedResult = MedicineItem(
-                                        id = System.currentTimeMillis().toString(),
-                                        name = "Metformin HCl",
-                                        dosage = "500mg Extended Release",
-                                        frequency = "Once Daily with Dinner",
-                                        remainingPills = 60,
-                                        category = "Prescription"
-                                    )
+                                    isScanning = true
+                                    coroutineScope.launch {
+                                        val result = capturedBitmap?.let { com.example.data.repository.GeminiOcrService.extractPrescriptionDetails(it) }
+                                        scannedResult = result ?: MedicineItem(
+                                            id = System.currentTimeMillis().toString(),
+                                            name = "Metformin HCl",
+                                            dosage = "500mg Extended Release",
+                                            frequency = "Once Daily with Dinner",
+                                            remainingPills = 60,
+                                            category = "Prescription"
+                                        )
+                                        isScanning = false
+                                    }
                                 },
                                 colors = ButtonDefaults.outlinedButtonColors(
                                     contentColor = MaterialTheme.colorScheme.onErrorContainer
