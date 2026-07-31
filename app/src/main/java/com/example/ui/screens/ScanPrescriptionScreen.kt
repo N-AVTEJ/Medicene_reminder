@@ -52,6 +52,8 @@ fun ScanPrescriptionScreen(
     var isBlurryPhoto by remember { mutableStateOf(false) }
     var sharpnessScore by remember { mutableDoubleStateOf(0.0) }
     var blurWarningDismissed by remember { mutableStateOf(false) }
+    var extractionConfidence by remember { mutableDoubleStateOf(1.0) }
+    var isEditingScannedResult by remember { mutableStateOf(false) }
     var flashOn by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -89,7 +91,7 @@ fun ScanPrescriptionScreen(
 
         if (!blurry) {
             coroutineScope.launch {
-                val result = com.example.data.repository.GeminiOcrService.extractPrescriptionDetails(bitmap)
+                val (result, confidence) = com.example.data.repository.GeminiOcrService.extractPrescriptionDetails(bitmap)
                 scannedResult = result ?: MedicineItem(
                     id = System.currentTimeMillis().toString(),
                     name = "Metformin HCl",
@@ -98,6 +100,8 @@ fun ScanPrescriptionScreen(
                     remainingPills = 60,
                     category = "Prescription"
                 )
+                extractionConfidence = if (result != null) confidence else 0.90 // Force review if API failed completely
+                isEditingScannedResult = extractionConfidence < 0.95
                 isScanning = false
             }
         } else {
@@ -373,7 +377,9 @@ fun ScanPrescriptionScreen(
                                     // Generate result on override
                                     isScanning = true
                                     coroutineScope.launch {
-                                        val result = capturedBitmap?.let { com.example.data.repository.GeminiOcrService.extractPrescriptionDetails(it) }
+                                        val ocrResult = capturedBitmap?.let { com.example.data.repository.GeminiOcrService.extractPrescriptionDetails(it) }
+                                        val result = ocrResult?.first
+                                        val confidence = ocrResult?.second ?: 0.90
                                         scannedResult = result ?: MedicineItem(
                                             id = System.currentTimeMillis().toString(),
                                             name = "Metformin HCl",
@@ -382,6 +388,8 @@ fun ScanPrescriptionScreen(
                                             remainingPills = 60,
                                             category = "Prescription"
                                         )
+                                        extractionConfidence = confidence
+                                        isEditingScannedResult = extractionConfidence < 0.95
                                         isScanning = false
                                     }
                                 },
@@ -408,9 +416,13 @@ fun ScanPrescriptionScreen(
             // Scanned Result Details Card (Shown when clear or blur warning dismissed)
             AnimatedVisibility(visible = scannedResult != null) {
                 scannedResult?.let { med ->
+                    var editedName by remember(med) { mutableStateOf(med.name) }
+                    var editedDosage by remember(med) { mutableStateOf(med.dosage) }
+                    var editedFrequency by remember(med) { mutableStateOf(med.frequency) }
+
                     Card(
                         colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surface
+                            containerColor = if (isEditingScannedResult) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface
                         ),
                         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
                         shape = RoundedCornerShape(20.dp),
@@ -427,46 +439,76 @@ fun ScanPrescriptionScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = "Detected Prescription",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    fontWeight = FontWeight.Bold
-                                )
+                                Column {
+                                    Text(
+                                        text = if (isEditingScannedResult) "Review Needed (Low Confidence)" else "Detected Prescription",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = if (isEditingScannedResult) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    if (isEditingScannedResult) {
+                                        Text(
+                                            text = "Confidence: ${String.format("%.1f", extractionConfidence * 100)}%",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.error
+                                        )
+                                    }
+                                }
                                 Icon(
-                                    imageVector = Icons.Default.CheckCircle,
+                                    imageVector = if (isEditingScannedResult) Icons.Default.Warning else Icons.Default.CheckCircle,
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
+                                    tint = if (isEditingScannedResult) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(24.dp)
                                 )
                             }
 
-                            Text(
-                                text = med.name,
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
+                            if (isEditingScannedResult) {
+                                OutlinedTextField(
+                                    value = editedName,
+                                    onValueChange = { editedName = it },
+                                    label = { Text("Medicine Name") },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                                OutlinedTextField(
+                                    value = editedDosage,
+                                    onValueChange = { editedDosage = it },
+                                    label = { Text("Dosage") },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                                OutlinedTextField(
+                                    value = editedFrequency,
+                                    onValueChange = { editedFrequency = it },
+                                    label = { Text("Frequency & Instructions") },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            } else {
+                                Text(
+                                    text = med.name,
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
 
-                            Column(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Text(
-                                    text = "Dosage: ${med.dosage}",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = "Frequency: ${med.frequency}",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = "Pills per bottle: ${med.remainingPills}",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                Column(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(
+                                        text = "Dosage: ${med.dosage}",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "Frequency: ${med.frequency}",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "Pills per bottle: ${med.remainingPills}",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
 
                             Spacer(modifier = Modifier.height(8.dp))
@@ -475,13 +517,17 @@ fun ScanPrescriptionScreen(
                             Button(
                                 onClick = {
                                     FirebaseRepository.addMedicineWithAutoSchedule(
-                                        name = med.name,
-                                        dose = med.dosage,
-                                        frequency = med.frequency,
+                                        name = if (isEditingScannedResult) editedName else med.name,
+                                        dose = if (isEditingScannedResult) editedDosage else med.dosage,
+                                        frequency = if (isEditingScannedResult) editedFrequency else med.frequency,
                                         durationDays = 30,
                                         context = context
                                     )
-                                    onSaveScannedMedicine(med)
+                                    onSaveScannedMedicine(med.copy(
+                                        name = if (isEditingScannedResult) editedName else med.name,
+                                        dosage = if (isEditingScannedResult) editedDosage else med.dosage,
+                                        frequency = if (isEditingScannedResult) editedFrequency else med.frequency
+                                    ))
                                     onNavigateBack()
                                 },
                                 modifier = Modifier
@@ -491,7 +537,7 @@ fun ScanPrescriptionScreen(
                                 shape = RoundedCornerShape(14.dp)
                             ) {
                                 Text(
-                                    text = "Confirm & Auto-Generate 30-Day Schedule",
+                                    text = if (isEditingScannedResult) "Save & Auto-Generate 30-Day Schedule" else "Confirm & Auto-Generate 30-Day Schedule",
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -499,11 +545,22 @@ fun ScanPrescriptionScreen(
 
                             OutlinedButton(
                                 onClick = {
-                                    capturedBitmap = null
-                                    scannedResult = null
-                                    isBlurryPhoto = false
-                                    if (hasCameraPermission) {
-                                        takePictureLauncher.launch(null)
+                                    if (isEditingScannedResult) {
+                                        isEditingScannedResult = false
+                                        // But if they clicked this maybe they want to revert or just close, or retake. Let's make it retake.
+                                        capturedBitmap = null
+                                        scannedResult = null
+                                        isBlurryPhoto = false
+                                        if (hasCameraPermission) {
+                                            takePictureLauncher.launch(null)
+                                        }
+                                    } else {
+                                        capturedBitmap = null
+                                        scannedResult = null
+                                        isBlurryPhoto = false
+                                        if (hasCameraPermission) {
+                                            takePictureLauncher.launch(null)
+                                        }
                                     }
                                 },
                                 modifier = Modifier

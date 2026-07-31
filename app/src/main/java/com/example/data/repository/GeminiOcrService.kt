@@ -23,11 +23,11 @@ object GeminiOcrService {
         .writeTimeout(60, TimeUnit.SECONDS)
         .build()
 
-    suspend fun extractPrescriptionDetails(bitmap: Bitmap): MedicineItem? = withContext(Dispatchers.IO) {
+    suspend fun extractPrescriptionDetails(bitmap: Bitmap): Pair<MedicineItem?, Double> = withContext(Dispatchers.IO) {
         val apiKey = BuildConfig.GEMINI_API_KEY
         if (apiKey.isEmpty() || apiKey == "MY_GEMINI_API_KEY") {
             Log.e("GeminiOcrService", "API Key is missing or default!")
-            return@withContext null
+            return@withContext Pair(null, 0.0)
         }
 
         val base64Image = bitmap.toBase64()
@@ -37,7 +37,7 @@ object GeminiOcrService {
                 put(JSONObject().apply {
                     put("parts", JSONArray().apply {
                         put(JSONObject().apply {
-                            put("text", "You are an expert pharmacist AI. Analyze this prescription label image. Extract the following information and return ONLY a valid JSON object with no markdown formatting. The JSON must have these exact keys: 'name' (medicine name), 'dosage' (amount, e.g. 500mg), 'frequency' (e.g. Once Daily, Twice a day), 'instructions' (e.g. after food, with water). If a value is not found, use 'Unknown'.")
+                            put("text", "You are an expert pharmacist AI. Analyze this prescription label image. Extract the following information and return ONLY a valid JSON object with no markdown formatting. The JSON must have these exact keys: 'name' (medicine name), 'dosage' (amount, e.g. 500mg), 'frequency' (e.g. Once Daily, Twice a day), 'instructions' (e.g. after food, with water), and 'confidenceScore' (a number between 0.0 and 1.0 representing your confidence in the extraction accuracy). If a value is not found, use 'Unknown'.")
                         })
                         put(JSONObject().apply {
                             put("inlineData", JSONObject().apply {
@@ -70,10 +70,10 @@ object GeminiOcrService {
             val response = client.newCall(request).execute()
             if (!response.isSuccessful) {
                 Log.e("GeminiOcrService", "API Error: ${response.code} - ${response.message}\n${response.body?.string()}")
-                return@withContext null
+                return@withContext Pair(null, 0.0)
             }
 
-            val responseString = response.body?.string() ?: return@withContext null
+            val responseString = response.body?.string() ?: return@withContext Pair(null, 0.0)
             val responseJson = JSONObject(responseString)
             
             val candidates = responseJson.optJSONArray("candidates")
@@ -90,12 +90,13 @@ object GeminiOcrService {
                     val dosage = resultJson.optString("dosage", "Unknown Dosage")
                     val frequency = resultJson.optString("frequency", "Unknown Frequency")
                     val instructions = resultJson.optString("instructions", "")
+                    val confidence = resultJson.optDouble("confidenceScore", 1.0)
                     
                     val combinedFreq = if (instructions.isNotEmpty() && instructions != "Unknown") {
                         "$frequency • $instructions"
                     } else frequency
 
-                    return@withContext MedicineItem(
+                    val medicineItem = MedicineItem(
                         id = System.currentTimeMillis().toString(),
                         name = name,
                         dosage = dosage,
@@ -103,12 +104,13 @@ object GeminiOcrService {
                         remainingPills = 30, // Default
                         category = "Prescription"
                     )
+                    return@withContext Pair(medicineItem, confidence)
                 }
             }
         } catch (e: Exception) {
             Log.e("GeminiOcrService", "Exception: ${e.message}", e)
         }
-        return@withContext null
+        return@withContext Pair(null, 0.0)
     }
 
     private fun Bitmap.toBase64(): String {
