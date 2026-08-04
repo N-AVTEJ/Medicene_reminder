@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Camera
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DocumentScanner
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Warning
@@ -543,17 +544,30 @@ fun ScanPrescriptionScreen(
                                 )
                             }
 
+                            if (!isEditingScannedResult) {
+                                OutlinedButton(
+                                    onClick = { isEditingScannedResult = true },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(48.dp)
+                                        .testTag("edit_scanned_rx_button"),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Icon(imageVector = Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(20.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Edit Details",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+
                             OutlinedButton(
                                 onClick = {
-                                    if (isEditingScannedResult) {
+                                    if (isEditingScannedResult && extractionConfidence >= 0.95) {
+                                        // Allow canceling edit if confidence was high enough
                                         isEditingScannedResult = false
-                                        // But if they clicked this maybe they want to revert or just close, or retake. Let's make it retake.
-                                        capturedBitmap = null
-                                        scannedResult = null
-                                        isBlurryPhoto = false
-                                        if (hasCameraPermission) {
-                                            takePictureLauncher.launch(null)
-                                        }
                                     } else {
                                         capturedBitmap = null
                                         scannedResult = null
@@ -572,7 +586,7 @@ fun ScanPrescriptionScreen(
                                 Icon(imageVector = Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(20.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "Retake Photo",
+                                    text = if (isEditingScannedResult && extractionConfidence >= 0.95) "Cancel Edit" else "Retake Photo",
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold
                                 )
