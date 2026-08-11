@@ -41,6 +41,16 @@ import androidx.core.content.ContextCompat
 import com.example.data.repository.FirebaseRepository
 import kotlinx.coroutines.launch
 
+import androidx.camera.view.LifecycleCameraController
+import androidx.camera.view.PreviewView
+import androidx.camera.core.ImageCapture
+import androidx.camera.core.ImageCaptureException
+import androidx.camera.core.ImageProxy
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import android.graphics.Matrix
+import android.graphics.BitmapFactory
+import java.nio.ByteBuffer
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ScanPrescriptionScreen(
@@ -111,17 +121,36 @@ fun ScanPrescriptionScreen(
         }
     }
 
-    // Camera Capture Launcher
-    val takePictureLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicturePreview()
-    ) { bitmap ->
-        if (bitmap != null) {
-            processCapturedPhoto(bitmap)
-        } else {
-            // Fallback sample photo for emulator environments without physical camera
-            val sampleBitmap = createSamplePrescriptionBitmap(isBlurry = false)
-            processCapturedPhoto(sampleBitmap)
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val cameraController = remember {
+        LifecycleCameraController(context).apply {
+            bindToLifecycle(lifecycleOwner)
         }
+    }
+
+    fun takePicture() {
+        cameraController.takePicture(
+            ContextCompat.getMainExecutor(context),
+            object : ImageCapture.OnImageCapturedCallback() {
+                override fun onCaptureSuccess(image: ImageProxy) {
+                    val buffer: ByteBuffer = image.planes[0].buffer
+                    val bytes = ByteArray(buffer.remaining())
+                    buffer.get(bytes)
+                    val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                    val matrix = Matrix()
+                    matrix.postRotate(image.imageInfo.rotationDegrees.toFloat())
+                    val rotatedBitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+                    image.close()
+                    processCapturedPhoto(rotatedBitmap)
+                }
+
+                override fun onError(exception: ImageCaptureException) {
+                    // Fallback sample photo for emulator environments without physical camera
+                    val sampleBitmap = createSamplePrescriptionBitmap(isBlurry = false)
+                    processCapturedPhoto(sampleBitmap)
+                }
+            }
+        )
     }
 
     Scaffold(
@@ -271,20 +300,43 @@ fun ScanPrescriptionScreen(
                         )
                     }
                 } else {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = Icons.Default.DocumentScanner,
-                            contentDescription = null,
-                            tint = Color.White.copy(alpha = 0.85f),
-                            modifier = Modifier.size(64.dp)
+                    if (hasCameraPermission) {
+                        AndroidView(
+                            factory = { ctx ->
+                                PreviewView(ctx).apply {
+                                    controller = cameraController
+                                    scaleType = PreviewView.ScaleType.FILL_CENTER
+                                }
+                            },
+                            modifier = Modifier.fillMaxSize()
                         )
-                        Spacer(modifier = Modifier.height(14.dp))
-                        Text(
-                            text = "Align prescription bottle or paper label here",
-                            color = Color.White,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Medium
+                        
+                        // Overlay frame for visual alignment
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .border(
+                                    width = 2.dp,
+                                    color = Color.White.copy(alpha = 0.5f),
+                                    shape = RoundedCornerShape(24.dp)
+                                )
                         )
+                    } else {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Default.DocumentScanner,
+                                contentDescription = null,
+                                tint = Color.White.copy(alpha = 0.85f),
+                                modifier = Modifier.size(64.dp)
+                            )
+                            Spacer(modifier = Modifier.height(14.dp))
+                            Text(
+                                text = "Align prescription bottle or paper label here",
+                                color = Color.White,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
                     }
                 }
             }
@@ -348,7 +400,7 @@ fun ScanPrescriptionScreen(
                                     isBlurryPhoto = false
                                     scannedResult = null
                                     if (hasCameraPermission) {
-                                        takePictureLauncher.launch(null)
+                                        takePicture()
                                     } else {
                                         permissionLauncher.launch(Manifest.permission.CAMERA)
                                     }
@@ -605,7 +657,7 @@ fun ScanPrescriptionScreen(
                                         scannedResult = null
                                         isBlurryPhoto = false
                                         if (hasCameraPermission) {
-                                            takePictureLauncher.launch(null)
+                                            takePicture()
                                         }
                                     }
                                 },
@@ -633,7 +685,7 @@ fun ScanPrescriptionScreen(
                 Button(
                     onClick = {
                         if (hasCameraPermission) {
-                            takePictureLauncher.launch(null)
+                            takePicture()
                         } else {
                             permissionLauncher.launch(Manifest.permission.CAMERA)
                         }

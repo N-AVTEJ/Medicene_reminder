@@ -20,6 +20,7 @@ import com.example.ui.navigation.Screen
 import com.example.ui.screens.*
 import com.example.ui.theme.MedReminderTheme
 import com.example.utils.NotificationHelper
+import com.google.accompanist.permissions.isGranted
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -58,11 +59,21 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@OptIn(com.google.accompanist.permissions.ExperimentalPermissionsApi::class)
 @Composable
 fun MedReminderApp() {
     var currentScreen by remember { mutableStateOf<Screen>(Screen.Home) }
 
     val isBottomBarVisible = currentScreen in Screen.bottomNavItems
+
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+        val notificationPermissionState = com.google.accompanist.permissions.rememberPermissionState(android.Manifest.permission.POST_NOTIFICATIONS)
+        LaunchedEffect(Unit) {
+            if (!notificationPermissionState.status.isGranted) {
+                notificationPermissionState.launchPermissionRequest()
+            }
+        }
+    }
 
     Scaffold(
         modifier = Modifier

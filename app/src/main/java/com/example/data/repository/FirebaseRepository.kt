@@ -30,6 +30,24 @@ object FirebaseRepository {
     private var appContext: Context? = null
     private var firestoreInstance: FirebaseFirestore? = null
 
+    fun scheduleAllAlarms(context: Context) {
+        val allReminders = _reminders.value
+        val allMedicines = _medicines.value
+        val allDoses = _doses.value
+        allReminders.forEach { reminder ->
+            val dose = allDoses.find { it.id == reminder.dose_id } ?: return@forEach
+            val medicine = allMedicines.find { it.id == dose.medicine_id } ?: return@forEach
+            if (dose.status == "pending") {
+                NotificationHelper.scheduleLocalNotification(
+                    context,
+                    reminder,
+                    medicine.name,
+                    medicine.dose
+                )
+            }
+        }
+    }
+
     /**
      * Initializes session state from SharedPreferences on app startup.
      */
@@ -49,6 +67,7 @@ object FirebaseRepository {
         _currentUser.value = _currentUser.value.copy(name = savedName, phone = savedPhone)
 
         Log.d(TAG, "Session restored: isLoggedIn=$savedIsLoggedIn, token=$savedToken, firstTime=$savedIsFirstTime")
+        scheduleAllAlarms(appContext!!)
     }
 
     private fun getFirestore(): FirebaseFirestore? {
