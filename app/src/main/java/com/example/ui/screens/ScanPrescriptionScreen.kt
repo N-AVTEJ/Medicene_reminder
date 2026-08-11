@@ -463,6 +463,9 @@ fun ScanPrescriptionScreen(
                                 )
                             }
 
+                            val currentName = if (isEditingScannedResult) editedName else med.name
+                            val matchedName = remember(currentName) { com.example.utils.DrugMatcher.findBestMatch(currentName) }
+
                             if (isEditingScannedResult) {
                                 OutlinedTextField(
                                     value = editedName,
@@ -470,6 +473,26 @@ fun ScanPrescriptionScreen(
                                     label = { Text("Medicine Name") },
                                     modifier = Modifier.fillMaxWidth()
                                 )
+                                if (matchedName != null && matchedName != currentName) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.padding(start = 4.dp)
+                                    ) {
+                                        Text(
+                                            text = "Official match: $matchedName",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        TextButton(
+                                            onClick = { editedName = matchedName },
+                                            contentPadding = PaddingValues(0.dp),
+                                            modifier = Modifier.height(24.dp)
+                                        ) {
+                                            Text("Use this", style = MaterialTheme.typography.labelSmall)
+                                        }
+                                    }
+                                }
                                 OutlinedTextField(
                                     value = editedDosage,
                                     onValueChange = { editedDosage = it },
@@ -483,12 +506,21 @@ fun ScanPrescriptionScreen(
                                     modifier = Modifier.fillMaxWidth()
                                 )
                             } else {
-                                Text(
-                                    text = med.name,
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
+                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Text(
+                                        text = med.name,
+                                        style = MaterialTheme.typography.headlineSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    if (matchedName != null && matchedName != currentName) {
+                                        Text(
+                                            text = "Official match: $matchedName",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                }
 
                                 Column(
                                     modifier = Modifier.fillMaxWidth(),
