@@ -42,7 +42,10 @@ object DrugMatcher {
         commonDrugs.find { it.lowercase() == queryLower }?.let { return it }
         
         // Substring match
-        commonDrugs.find { queryLower.contains(it.lowercase()) || it.lowercase().contains(queryLower) }?.let { return it }
+        commonDrugs.find { 
+            val itLower = it.lowercase()
+            (queryLower.length > 3 && queryLower.contains(itLower)) || (queryLower.length > 3 && itLower.contains(queryLower)) 
+        }?.let { return it }
 
         var bestMatch: String? = null
         var minDistance = Int.MAX_VALUE
